@@ -7,6 +7,9 @@ use warnings;
 use File::Spec::Functions qw( catfile path );
 use Data::Dumper;
 
+# ======================== USER CUSTOMIZING DATA ====================
+my @language = ("c++", "java");
+
 my %language_patterns = (
 	"default" => 'h|hh|hpp|c|cc|cxx|cpp|java|js',
 	#"c++" => 'h|hh|hpp|c|cc|cxx|cpp',
@@ -15,6 +18,7 @@ my %language_patterns = (
 	"javascript" => 'js',
 	"android" => 'java|xml',
 );
+# ======================== USER CUSTOMIZING DATA ====================
 
 use constant PATH => path;
 use constant PATHEXT => split /;/, $ENV{PATHEXT};
@@ -126,7 +130,7 @@ sub get_file_churn($$;$) {
 	awk \'"" != $2\' | sort -k2 | uniq -cf1 | sort -rn |
 	while read frequency sha1 path 
 	do 
-		[ "blob" == "$(git cat-file -t $sha1)" ] && echo -e "$frequency\t$path"; 
+		[ "blob" = "$(git cat-file -t $sha1)" ] && echo -e "$frequency\t$path"; 
 	done';
 
 	if ( ! open(GIT_REV_LIST,'-|', $COMMIT_FREQUENCY_COMMAND) ) {
@@ -142,12 +146,12 @@ sub get_file_churn($$;$) {
 	my %file_stats;
 	my %function_complexities;
 	while(my $churn_line = <GIT_REV_LIST>) {
-#		chomp $churn_line;
+		chomp $churn_line;
 		if ($churn_line =~ m{^(\d+)\s+(.+)} ) {
 			my $frequency= $1;
 			my $filename = $2;
 
-			print ".";
+#			print ".";
 			print FILE_CHURN "$filename, $frequency\n" if $export_flag;
 #			print "$filename\t ($frequency commits)\n";
 			$file_stats{$filename}{commits} = $frequency;
@@ -188,11 +192,13 @@ sub get_language_pattern_str(\@) {
 }
 
 #print "error!!" unless check_prerequisite("git");
-#my %file_stats = get_file_churn("git", "c++");
-my @language = ("c++", "java", "android");
+#print "error!!" unless check_prerequisite("a");
+
+my %file_stats = get_file_churn("git", "c++");
+print $file_stats{"builtin/rev-list.c"}{commits};
+
 print get_language_pattern_str(@language);
-#a_test(\@language);
-#build_und_database("git", "c++");
-#print $file_stats{"builtin/rev-list.c"}{commits};
+build_und_database("git", "c++");
 #print keys %file_stats;
-#print Dumper \%file_stats;
+
+print Dumper \%file_stats;
