@@ -147,7 +147,7 @@ sub get_file_churn($$;$) {
 	my %function_complexities;
 	while(my $churn_line = <GIT_REV_LIST>) {
 		chomp $churn_line;
-		if ($churn_line =~ m{^(\d+)\s+(.+)} ) {
+		if ($churn_line =~ m{(\d+)\s+(.+)} ) {
 			my $frequency= $1;
 			my $filename = $2;
 
@@ -202,3 +202,4 @@ build_und_database("git", "c++");
 #print keys %file_stats;
 
 print Dumper \%file_stats;
+
