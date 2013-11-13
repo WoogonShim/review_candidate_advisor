@@ -7,6 +7,9 @@ use warnings;
 use File::Spec::Functions qw( catfile path );
 use Data::Dumper;
 
+# ======================== USER CUSTOMIZING DATA ====================
+my @target_language = ("c++", "java");
+
 my %language_patterns = (
 	"default" => 'h|hh|hpp|c|cc|cxx|cpp|java|js',
 	#"c++" => 'h|hh|hpp|c|cc|cxx|cpp',
@@ -15,6 +18,7 @@ my %language_patterns = (
 	"javascript" => 'js',
 	"android" => 'java|xml',
 );
+# ======================== USER CUSTOMIZING DATA ====================
 
 use constant PATH => path;
 use constant PATHEXT => split /;/, $ENV{PATHEXT};
@@ -48,13 +52,44 @@ sub check_prerequisite($) {
 }
 
 sub build_und_database($$) {
-	my ($target_dir,$language) = @_;
+	my ($target_dir,$languages) = @_;
 
-	chdir $target_dir;
-	print "und -quiet create -db $target_dir.udb -languages $language add -subdir on . settings -metrics AvgLineCode CountLineCodeExe AvgCyclomatic Cyclomatic MaxCyclomatic MaxNesting -metricsOutputFile metrics.csv";
-	die;
-	system("und -quiet create -db $target_dir.udb -languages $language add -subdir on . settings -metrics AvgLineCode CountLineCodeExe AvgCyclomatic Cyclomatic MaxCyclomatic MaxNesting -metricsOutputFile metrics.csv");
-	chdir "..";
+#	chdir $target_dir;
+	my $BUILD_DATABASE_COMMAND = "und -quiet "
+	."create -db $target_dir.udb -languages $languages "
+	."-JavaVersion java6 "
+	."add "
+		."-exclude .git "
+		."-subdir on $target_dir "
+	."settings "
+#		."-WriteColumnTitles on "
+#		."-ShowDeclaredInFile on "
+#		."-FileNameDisplayMode NoPath "
+#		."-DeclaredInFileDisplayMode RelativePath "
+		 ."-metrics "
+		 	."CountLineCodeExe "
+		 	."Cyclomatic "
+		 	."MaxCyclomatic "
+		 	."MaxNesting "
+		 ."-metricsOutputFile $target_dir/metrics.csv";
+#	print "$BUILD_DATABASE_COMMAND\n";	
+	system($BUILD_DATABASE_COMMAND);
+
+	my $ANALYZE_DATABASE_COMMAND = 
+		"und -quite analyze -db $target_dir.udb";
+
+	if ( ! open(ANALYZE_DATABASE,'-|', $ANALYZE_DATABASE_COMMAND) ) {
+	    die "Failed to process 'und analyze -db $target_dir.udb': $!\n";
+	}
+	while(my $db_analysis = <ANALYZE_DATABASE>) {
+		chomp $db_analysis;
+		if ($db_analysis =~ m{Errors:(\d+)\s+Warnings:(\d+)} ) {
+			print ">>> $db_analysis\n";
+		}
+	}
+#	system("und -quite analyze -db $target_dir.udb");
+#	system("und -quite metrics -db $target_dir.udb");
+#	chdir "..";
 }
 
 # chdir "git";
@@ -115,19 +150,24 @@ sub build_und_database($$) {
 #     : draw_chart
 #   61) perl 로 힘들다면 python 으로 차트를 생성하자.
 
-sub get_file_churn($$;$) {
-	my ($target_dir, $language, $export_flag) = @_;
+sub get_file_churn($$;$$) {
+	my ($target_dir, $languages, $since, $export_flag) = @_;
 
 	chdir $target_dir;
 
+	my $since_str = "";
+	$since_str = '--since=\'' .$since .'\'' if defined $since;
+
 	my $COMMIT_FREQUENCY_COMMAND = 
-	'git rev-list --since=\'one month ago\' --no-merges --objects --all | 
-	grep -E \'*(' .$language_patterns{$language} .'$)\' | 
+	'git rev-list ' .$since_str .' --no-merges --objects --all | 
+	grep -E \'*(' .$language_patterns{$languages} .'$)\' | 
 	awk \'"" != $2\' | sort -k2 | uniq -cf1 | sort -rn |
 	while read frequency sha1 path 
 	do 
-		[ "blob" == "$(git cat-file -t $sha1)" ] && echo -e "$frequency\t$path"; 
+		[ "blob" = "$(git cat-file -t $sha1)" ] && echo -e "$frequency\t$path"; 
 	done';
+
+#	print "$COMMIT_FREQUENCY_COMMAND\n";
 
 	if ( ! open(GIT_REV_LIST,'-|', $COMMIT_FREQUENCY_COMMAND) ) {
 	    die "Failed to process 'git rev-list': $!\n";
@@ -142,12 +182,12 @@ sub get_file_churn($$;$) {
 	my %file_stats;
 	my %function_complexities;
 	while(my $churn_line = <GIT_REV_LIST>) {
-#		chomp $churn_line;
+		chomp $churn_line;
 		if ($churn_line =~ m{^(\d+)\s+(.+)} ) {
 			my $frequency= $1;
 			my $filename = $2;
 
-			print ".";
+#			print ".";
 			print FILE_CHURN "$filename, $frequency\n" if $export_flag;
 #			print "$filename\t ($frequency commits)\n";
 			$file_stats{$filename}{commits} = $frequency;
@@ -156,10 +196,11 @@ sub get_file_churn($$;$) {
 		}
 	}
 	my $number_of_items = keys %file_stats;
-	print "total ($number_of_items)\n";
+	print "last modified: total $number_of_items files\n";
 
 	close GIT_REV_LIST;	
 	close FILE_CHURN if $export_flag;
+	chdir "..";
 	return %file_stats;
 }
 
@@ -170,7 +211,7 @@ sub export_csv_file_churn($) {
 
 sub get_language_list_str (\@) {
 	my ($languages) = shift(@_);
-	return join ", ", @{$languages};
+	return join " ", @{$languages};
 }
 
 sub get_language_pattern_str(\@) {
@@ -188,11 +229,17 @@ sub get_language_pattern_str(\@) {
 }
 
 #print "error!!" unless check_prerequisite("git");
-#my %file_stats = get_file_churn("git", "c++");
-my @language = ("c++", "java", "android");
-print get_language_pattern_str(@language);
-#a_test(\@language);
-#build_und_database("git", "c++");
+#print "error!!" unless check_prerequisite("a");
+
+#my %file_stats = get_file_churn("git", "c++", "one month ago");
 #print $file_stats{"builtin/rev-list.c"}{commits};
+
+#print get_language_pattern_str(@target_language);
+#my %file_stats = get_file_churn("a", "c++");
+#print Dumper \%file_stats;
+#build_und_database("a", get_language_list_str(@target_language));
 #print keys %file_stats;
+
+# FileIO.c LinkedList.c WordCounterMain.c
+
 #print Dumper \%file_stats;
