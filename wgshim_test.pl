@@ -145,13 +145,13 @@ sub build_und_database($$) {
 #     : get_file_complexity(filepath)
 #   41) 20) 에서 얻은 파일 정보들에 대해... (모든 파일을 할 필요는 없음)
 # 50) 저장된 데이터를 엑셀파일(혹은 csv 포맷으로)에 저장한다.
-#     : store_file_churn_complexity
+#     : export_file_churn_to_csv
 # 60) 저장된 정보를 바탕으로 file-churn-complexity chart 를 생성한다.
 #     : draw_chart
 #   61) perl 로 힘들다면 python 으로 차트를 생성하자.
 
-sub get_file_churn($$;$$) {
-	my ($target_dir, $languages, $since, $export_flag) = @_;
+sub get_file_churn($$;$) {
+	my ($target_dir, $languages, $since) = @_;
 
 	chdir $target_dir;
 
@@ -173,12 +173,6 @@ sub get_file_churn($$;$$) {
 	    die "Failed to process 'git rev-list': $!\n";
 	}
 
-	if ($export_flag) {
-		open(FILE_CHURN, '>:encoding(UTF-8)', 'file_churn.csv') 
-			or die "Couldn't open 'file_churn.csv': $1\n";
-		print FILE_CHURN "filename, commits\n";
-	}
-
 	my %file_stats;
 	my %function_complexities;
 	while(my $churn_line = <GIT_REV_LIST>) {
@@ -188,7 +182,6 @@ sub get_file_churn($$;$$) {
 			my $filename = $2;
 
 #			print ".";
-			print FILE_CHURN "$filename, $frequency\n" if $export_flag;
 #			print "$filename\t ($frequency commits)\n";
 			$file_stats{$filename}{commits} = $frequency;
 		} else {
@@ -199,14 +192,27 @@ sub get_file_churn($$;$$) {
 	print "last modified: total $number_of_items files\n";
 
 	close GIT_REV_LIST;	
-	close FILE_CHURN if $export_flag;
 	chdir "..";
 	return %file_stats;
 }
 
-sub export_csv_file_churn($) {
-	my %file_stats = shift(@_);
-	print 
+sub export_file_churn_to_csv {
+	my ($target_dir, %file_stats) = @_;
+
+	chdir $target_dir;
+	open(FILE_CHURN, '>:encoding(UTF-8)', 'file_churn.csv')
+		or die "Couldn't open 'file_churn.csv': $1\n";
+
+	print FILE_CHURN "filename, commits\n";
+	# sort 1) commits desc 2) filename asc with lowercase
+	foreach (sort {($file_stats{$b}{commits} <=> $file_stats{$a}{commits}) or
+		           (lc $a cmp lc $b)} keys %file_stats ) {
+		#print "$_ : $file_stats{$_}{commits}\n";
+		print FILE_CHURN "$_, $file_stats{$_}{commits}\n";
+	}
+	close FILE_CHURN;
+	chdir "..";
+	#print Dumper \%file_stats;
 }
 
 sub get_language_list_str (\@) {
@@ -236,6 +242,15 @@ sub get_language_pattern_str(\@) {
 
 #print get_language_pattern_str(@target_language);
 #my %file_stats = get_file_churn("a", "c++");
+
+my %test_file_stats = (
+	'file.c' => {'commits' => 1},
+	'Word.c' => {'commits' => 5},
+	'Aora.c' => {'commits' => 5},
+	'List.c' => {'commits' => 3},
+	'last.c' => {'commits' => 3}
+);
+export_file_churn_to_csv("a", %test_file_stats);
 #print Dumper \%file_stats;
 #build_und_database("a", get_language_list_str(@target_language));
 #print keys %file_stats;
