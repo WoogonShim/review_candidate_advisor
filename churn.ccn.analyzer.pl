@@ -2,18 +2,20 @@
 
 use strict;
 use warnings;
-#use File::Which;
-#use Text::CSV_XS;
+use File::Path qw(make_path);
 use File::Spec::Functions qw( catfile path );
 use Data::Dumper;
 
 # ======================== USER CUSTOMIZING DATA ====================
 my @target_language = ("c++", "java");
 
-my %language_patterns = (
+our $output_dir = "churn-complexity-output";
+
+our %language_patterns = (
 	"default" => 'h|hh|hpp|c|cc|cxx|cpp|java|js',
 	#"c++" => 'h|hh|hpp|c|cc|cxx|cpp',
-	"c++" => 'c',
+	"c" => 'c',
+	"c++" => 'c|cc|cpp',
 	"java" => 'java',
 	"javascript" => 'js',
 	"android" => 'java|xml',
@@ -34,6 +36,15 @@ sub which {
 
 sub check_prerequisite($) {
 	my $target_dir = shift(@_);
+
+	if (! -d $target_dir) {
+		print "\n\tTarget directory('$target_dir') is not exists!\n";
+		return "";
+	}
+
+	if (! -d "$output_dir/$target_dir") {
+		make_path "$output_dir/$target_dir";
+	}
 
 	my $und_exists = which('und');
 	if (!$und_exists) {
@@ -56,7 +67,7 @@ sub build_und_database($$) {
 
 #	chdir $target_dir;
 	my $BUILD_DATABASE_COMMAND = "und -quiet "
-	."create -db $target_dir.udb -languages $languages "
+	."create -db $output_dir/$target_dir/$target_dir.udb -languages $languages "
 	."-JavaVersion java6 "
 	."add "
 		."-exclude .git "
@@ -71,24 +82,24 @@ sub build_und_database($$) {
 		 	."Cyclomatic "
 		 	."MaxCyclomatic "
 		 	."MaxNesting "
-		 ."-metricsOutputFile $target_dir/metrics.csv";
+		 ."-metricsOutputFile $output_dir/$target_dir/metrics.csv";
 #	print "$BUILD_DATABASE_COMMAND\n";	
 	system($BUILD_DATABASE_COMMAND);
 
 	my $ANALYZE_DATABASE_COMMAND = 
-		"und -quite analyze -db $target_dir.udb";
+		"und -quite analyze -db $output_dir/$target_dir/$target_dir.udb";
 
 	if ( ! open(ANALYZE_DATABASE,'-|', $ANALYZE_DATABASE_COMMAND) ) {
-	    die "Failed to process 'und analyze -db $target_dir.udb': $!\n";
+	    die "Failed to process 'und analyze -db $output_dir/$target_dir/$target_dir.udb': $!\n";
 	}
 	while(my $db_analysis = <ANALYZE_DATABASE>) {
 		chomp $db_analysis;
 		if ($db_analysis =~ m{Errors:(\d+)\s+Warnings:(\d+)} ) {
-			print ">>> $db_analysis\n";
+			print "... $db_analysis\n";
 		}
 	}
-#	system("und -quite analyze -db $target_dir.udb");
-#	system("und -quite metrics -db $target_dir.udb");
+#	system("und -quite analyze -db $output_dir/$target_dir.udb");
+#	system("und -quite metrics -db $output_dir/$target_dir.udb");
 #	chdir "..";
 }
 
@@ -142,16 +153,16 @@ sub build_und_database($$) {
 #     : get_file_churn
 #   31) 파일당 커밋 빈도를 파일에 저장한다. (중간 산출물)
 # 40) udb 에서 파일 당 함수의 복잡도와 LOC, 파일의 복잡도를 측정한다.
-#     : get_file_complexity(filepath)
+#     : build_churn_complexity(filepath)
 #   41) 20) 에서 얻은 파일 정보들에 대해... (모든 파일을 할 필요는 없음)
 # 50) 저장된 데이터를 엑셀파일(혹은 csv 포맷으로)에 저장한다.
-#     : store_file_churn_complexity
+#     : export_file_churn_to_csv
 # 60) 저장된 정보를 바탕으로 file-churn-complexity chart 를 생성한다.
 #     : draw_chart
 #   61) perl 로 힘들다면 python 으로 차트를 생성하자.
 
-sub get_file_churn($$;$$) {
-	my ($target_dir, $languages, $since, $export_flag) = @_;
+sub get_file_churn($\@;$) {
+	my ($target_dir, $languages, $since) = @_;
 
 	chdir $target_dir;
 
@@ -159,8 +170,8 @@ sub get_file_churn($$;$$) {
 	$since_str = '--since=\'' .$since .'\'' if defined $since;
 
 	my $COMMIT_FREQUENCY_COMMAND = 
-	'git rev-list ' .$since_str .' --no-merges --objects --all | 
-	grep -E \'*(' .$language_patterns{$languages} .'$)\' | 
+	'git rev-list ' .$since_str .' --no-merges --objects --ignore-missing --all | 
+	grep -E \'*\.(' .get_language_pattern_str($languages) .')$\' | 
 	awk \'"" != $2\' | sort -k2 | uniq -cf1 | sort -rn |
 	while read frequency sha1 path 
 	do 
@@ -173,14 +184,7 @@ sub get_file_churn($$;$$) {
 	    die "Failed to process 'git rev-list': $!\n";
 	}
 
-	if ($export_flag) {
-		open(FILE_CHURN, '>:encoding(UTF-8)', 'file_churn.csv') 
-			or die "Couldn't open 'file_churn.csv': $1\n";
-		print FILE_CHURN "filename, commits\n";
-	}
-
 	my %file_stats;
-	my %function_complexities;
 	while(my $churn_line = <GIT_REV_LIST>) {
 		chomp $churn_line;
 		if ($churn_line =~ m{^(\d+)\s+(.+)} ) {
@@ -188,7 +192,6 @@ sub get_file_churn($$;$$) {
 			my $filename = $2;
 
 #			print ".";
-			print FILE_CHURN "$filename, $frequency\n" if $export_flag;
 #			print "$filename\t ($frequency commits)\n";
 			$file_stats{$filename}{commits} = $frequency;
 		} else {
@@ -196,17 +199,33 @@ sub get_file_churn($$;$$) {
 		}
 	}
 	my $number_of_items = keys %file_stats;
-	print "last modified: total $number_of_items files\n";
 
 	close GIT_REV_LIST;	
-	close FILE_CHURN if $export_flag;
 	chdir "..";
 	return %file_stats;
 }
 
-sub export_csv_file_churn($) {
-	my %file_stats = shift(@_);
-	print 
+sub export_file_churn_to_csv {
+	my ($target_dir, %file_stats) = @_;
+
+	my $file_churn_file_path = catfile("$output_dir/$target_dir", "file_churn.csv");
+	open(FILE_CHURN, '>:encoding(UTF-8)', $file_churn_file_path)
+		or die "Couldn't open 'file_churn.csv': $1\n";
+
+	print FILE_CHURN "filename, commits\n";
+	# sort 1) commits desc 2) filename asc with lowercase
+	foreach (sort {($file_stats{$b}{commits} <=> $file_stats{$a}{commits}) or
+		           (lc $a cmp lc $b)} keys %file_stats ) {
+#		print "$_ : $file_stats{$_}{commits}\n";
+		print FILE_CHURN "$_, $file_stats{$_}{commits}\n";
+	}
+	close FILE_CHURN;
+	#print Dumper \%file_stats;
+}
+
+sub to_languages_array($) {
+	my $language_str = shift(@_);
+	return split('\s+', $language_str);
 }
 
 sub get_language_list_str (\@) {
@@ -214,7 +233,7 @@ sub get_language_list_str (\@) {
 	return join " ", @{$languages};
 }
 
-sub get_language_pattern_str(\@) {
+sub get_language_pattern_str (\@) {
 	my ($languages) = shift(@_);
 
 	my $pattern_str = "";
@@ -228,18 +247,53 @@ sub get_language_pattern_str(\@) {
 	return $pattern_str;
 }
 
+sub build_churn_complexity {
+	my ($target_dir) = shift(@_);
+
+	system("und uperl und.file.complexity.pl -db $output_dir/$target_dir/$target_dir.udb -v");
+}
+
 #print "error!!" unless check_prerequisite("git");
 #print "error!!" unless check_prerequisite("a");
 
 #my %file_stats = get_file_churn("git", "c++", "one month ago");
 #print $file_stats{"builtin/rev-list.c"}{commits};
-
-#print get_language_pattern_str(@target_language);
+# my @langs = to_languages_array("java javascript");
+# print get_language_pattern_str(@langs);
 #my %file_stats = get_file_churn("a", "c++");
+
+# my %test_file_stats = (
+# 	'file.c' => {'commits' => 1},
+# 	'Word.c' => {'commits' => 5},
+# 	'Aora.c' => {'commits' => 5},
+# 	'List.c' => {'commits' => 3},
+# 	'last.c' => {'commits' => 3}
+# );
+
+# print "0) $ARGV[0]\n";
+# print "1) $ARGV[1]\n";
+
+#TODO: language 를 파라미터로 받을 수 있도록...
+# 2번째 파라미터로 language 타입을 공백구분한 문자열로 받아서 이를 배열로 만든다.
+my $target_dir = $ARGV[0];
+my @languages = to_languages_array($ARGV[1]);
+
+print "1/5) Check prerequisites (und in PATH and target is git repo.) ";
+print "...Error!!\n" and exit unless check_prerequisite($target_dir);
+print "... Done\n";
+print "2/5) Retrieve last recently modified files ";
+my %file_stats = get_file_churn($target_dir, @languages, $ARGV[2]);
+print "... Done (total ", scalar keys %file_stats, " files)\n";
+print "3/5) Export file churn to csv ($target_dir/file_churn.csv) ";
+export_file_churn_to_csv($target_dir, %file_stats);
 #print Dumper \%file_stats;
-#build_und_database("a", get_language_list_str(@target_language));
+print "... Done\n";
+print "4/5) Parse source files by using Understand \n";
+build_und_database($target_dir, $ARGV[1]);
 #print keys %file_stats;
 
-# FileIO.c LinkedList.c WordCounterMain.c
-
+print "5/5) Report result \n";
+build_churn_complexity($target_dir);
 #print Dumper \%file_stats;
+print "... Done\n";
+print "See result at '$output_dir/' directory\n";
