@@ -7,18 +7,15 @@ use File::Spec::Functions qw( catfile path );
 use Data::Dumper;
 
 # ======================== USER CUSTOMIZING DATA ====================
-my @target_language = ("c++", "java");
-
 our $output_dir = "churn-complexity-output";
 
 our %language_patterns = (
 	"default" => 'h|hh|hpp|c|cc|cxx|cpp|java|js',
 	#"c++" => 'h|hh|hpp|c|cc|cxx|cpp',
-	"c" => 'c',
 	"c++" => 'c|cc|cpp',
 	"java" => 'java',
-	"javascript" => 'js',
-	"android" => 'java|xml',
+	"web" => 'js|php|html|css',
+	"null" => '',
 );
 # ======================== USER CUSTOMIZING DATA ====================
 
@@ -276,7 +273,7 @@ sub build_churn_complexity {
 #TODO: language 를 파라미터로 받을 수 있도록...
 # 2번째 파라미터로 language 타입을 공백구분한 문자열로 받아서 이를 배열로 만든다.
 my $target_dir = $ARGV[0];
-my @languages = to_languages_array($ARGV[1]);
+my @languages = to_languages_array(lc $ARGV[1]);
 
 print "1/5) Check prerequisites (und in PATH and target is git repo.) ";
 print "...Error!!\n" and exit unless check_prerequisite($target_dir);
@@ -296,4 +293,4 @@ print "5/5) Report result \n";
 build_churn_complexity($target_dir);
 #print Dumper \%file_stats;
 print "... Done\n";
-print "See result at '$output_dir/' directory\n";
+print "See result at '$output_dir/$target_dir' directory\n";
