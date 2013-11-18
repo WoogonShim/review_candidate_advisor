@@ -1,0 +1,34 @@
+Prerequisite
+============
+
+   * Perl > 5.x
+   * Scitools Understand > 3.x above
+
+Instruction
+============
+
+Copy two script files (churn.ccn.analyzer.pl and und.file.complexity.pl) at the upper directory of target git repositories.
+
+Usage(s)
+========
+
+   $ churn.ccn.analyzer.pl [git repo] [language] [since]
+      - git repo    directory name of target git repository
+
+      - language    supported langauge: c++, java, web
+
+                    * c++ : C/C++ language
+                    * java: Java language
+                    * web : javascript, php, css, html
+
+                    you can use compound form: "c++", "java", "c++ java web"
+
+      - since       (optional) you can dignate specific date range
+
+Examples
+========
+
+   $ churn.ccn.analyzer.pl junit "java" 
+   $ churn.ccn.analyzer.pl git "c++" "one month ago"
+   $ churn.ccn.analyzer.pl junit "java" "2013-12-01"
+
