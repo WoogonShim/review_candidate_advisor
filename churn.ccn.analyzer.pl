@@ -62,7 +62,6 @@ sub check_prerequisite($) {
 sub build_und_database($$) {
 	my ($target_dir,$languages) = @_;
 
-#	chdir $target_dir;
 	my $BUILD_DATABASE_COMMAND = "und -quiet "
 	."create -db $output_dir/$target_dir/$target_dir.udb -languages $languages "
 	."-JavaVersion java6 "
@@ -70,10 +69,6 @@ sub build_und_database($$) {
 		."-exclude .git "
 		."-subdir on $target_dir "
 	."settings "
-#		."-WriteColumnTitles on "
-#		."-ShowDeclaredInFile on "
-#		."-FileNameDisplayMode NoPath "
-#		."-DeclaredInFileDisplayMode RelativePath "
 		 ."-metrics "
 		 	."CountLineCodeExe "
 		 	."Cyclomatic "
@@ -95,68 +90,28 @@ sub build_und_database($$) {
 			print "... $db_analysis\n";
 		}
 	}
-#	system("und -quite analyze -db $output_dir/$target_dir.udb");
-#	system("und -quite metrics -db $output_dir/$target_dir.udb");
-#	chdir "..";
 }
 
-# chdir "git";
-
-# my $COMMIT_FREQUENCY_COMMAND = 
-# 'git rev-list --since=\'one month ago\' --no-merges --objects --all | 
-# grep -E \'' .$languages{"cpp"} .'\' | 
-# awk \'"" != $2\' | sort -k2 | uniq -cf1 | sort -rn';
-
-# if ( ! open(GIT_REV_LIST,'-|', $COMMIT_FREQUENCY_COMMAND) ) {
-#     die "Failed to process 'git rev-list': $!\n";
-# }
-
-# my %file_stats;
-# my %function_complexities;
-# my $count = 1;
-# while(my $churn_line = <GIT_REV_LIST>) {
-# 	chomp $churn_line;
-# 	if ($churn_line =~ m{^\s+(\d+)\s+(.*)\s+(.*)} ) {
-# 		my $frequency= $1;
-# 		my $sha1     = $2;
-# 		my $filename = $3;
-
-# 		my $type = `git cat-file -t $sha1`;
-# 		chomp $type;
-# 		if ("blob\n" eq $type) {
-# 			#print "$count\t $filename\t ($frequency commits)\n";
-# 			$file_stats{$filename}{commits} = $frequency;
-# 		}
-# 	} else {
-# 		print "err> $churn_line\n";
-# 	}
-# 	$count++;
-# }
-# #print Dumper \%file_stats;
-# print "total files : " .keys %file_stats;
-
-# close GIT_REV_LIST;
-
-# 10) �경 �인
+# 10) 환경 확인
 #     : check_prerequisite
-#   11) und �행�일PATH �에 존재�는지 �인�다.
-#   12) �재 �더가 git repository �� �인�다. (.git �더 �무 검
-# 20) �치und �이�베�스륝성�다. (.udb �일)
+#   11) und 실행파일이 PATH 상에 존재하는지 확인한다.
+#   12) 현재 폴더가 git repository 인지 확인한다. (.git 폴더 유무 검사)
+# 20) 위치에 und 데이터베이스를 생성한다. (.udb 파일)
 #     : build_und_database
-#   21) und �이�베�스 �성
-#   22) �팅�보 �정 (�코 �어, 메트� �정)
-#   23) und �이�베�스�일 추� & 분석
-# 30) git �서 최근 간의 �일 커밋 빈도�측정�다.
+#   21) und 데이터베이스 생성
+#   22) 셋팅정보 설정 (인코딩, 언어, 메트릭, 등 설정)
+#   23) und 데이터베이스에 파일 추가 & 분석
+# 30) git 에서 최근 한 달 간의 파일 당 커밋 빈도를 측정한다.
 #     : get_file_churn
-#   31) �일커밋 빈도륌일��한 (중간 �출�
-# 40) udb �서 �일 �수복잡�� LOC, �일복잡�� 측정�다.
+#   31) 파일당 커밋 빈도를 파일에 저장한다. (중간 산출물)
+# 40) udb 에서 파일 당 함수의 복잡도와 LOC, 파일의 복잡도를 측정한다.
 #     : build_churn_complexity(filepath)
-#   41) 20) �서 �� �일 �보�에 �.. (모든 �일�요�음)
-# 50) ��된 �이�� ��일(�� csv �맷�로)��한
+#   41) 20) 에서 얻은 파일 정보들에 대해... (모든 파일을 할 필요는 없음)
+# 50) 저장된 데이터를 엑셀파일(혹은 csv 포맷으로)에 저장한다.
 #     : export_file_churn_to_csv
-# 60) ��된 �보�바탕�로 file-churn-complexity chart 륝성�다.
+# 60) 저장된 정보를 바탕으로 file-churn-complexity chart 를 생성한다.
 #     : draw_chart
-#   61) perl 롘들�면 python �로 차트륝성�자.
+#   61) perl 로 힘들다면 python 으로 차트를 생성하자.
 
 sub get_file_churn($\@;$) {
 	my ($target_dir, $languages, $since) = @_;
@@ -250,28 +205,10 @@ sub build_churn_complexity {
 	system("und uperl und.file.complexity.pl -db $output_dir/$target_dir/$target_dir.udb -v");
 }
 
-#print "error!!" unless check_prerequisite("git");
-#print "error!!" unless check_prerequisite("a");
-
-#my %file_stats = get_file_churn("git", "c++", "one month ago");
-#print $file_stats{"builtin/rev-list.c"}{commits};
-# my @langs = to_languages_array("java javascript");
-# print get_language_pattern_str(@langs);
-#my %file_stats = get_file_churn("a", "c++");
-
-# my %test_file_stats = (
-# 	'file.c' => {'commits' => 1},
-# 	'Word.c' => {'commits' => 5},
-# 	'Aora.c' => {'commits' => 5},
-# 	'List.c' => {'commits' => 3},
-# 	'last.c' => {'commits' => 3}
-# );
-
 # print "0) $ARGV[0]\n";
 # print "1) $ARGV[1]\n";
 
-#TODO: language 륌라미터�받을 �도�..
-# 2번째 �라미터�language ��을 공백구분문자�로 받아�� 배열�만든
+#TODO: Usage 출력 및 파라미터 파싱 필요
 my $target_dir = $ARGV[0];
 my @languages = to_languages_array(lc $ARGV[1]);
 
