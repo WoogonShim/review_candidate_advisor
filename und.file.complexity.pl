@@ -71,11 +71,13 @@ sub build_churn_complexity {
 				next;
 			}
 
+			# initialize hash item values
 			$file_churn_complexity_stats{$filepath}{sum_complexity} = 0 if (!defined( $file_churn_complexity_stats{$filepath}{sum_complexity}));
 			$file_churn_complexity_stats{$filepath}{funct_count} = 0 if (!defined( $file_churn_complexity_stats{$filepath}{funct_count}));
 			$file_churn_complexity_stats{$filepath}{max_complexity} = 0 if (!defined( $file_churn_complexity_stats{$filepath}{max_complexity}));
+	 		$file_churn_complexity_stats{$filepath}{commits} = 
+	 			$file_churn_stats{$filepath}{commits} if (!defined( $file_churn_complexity_stats{$filepath}{commits}));
 
-	 		$file_churn_complexity_stats{$filepath}{commits} = $file_churn_stats{$filepath}{commits};
 			$file_churn_complexity_stats{$filepath}{sum_complexity} = $complexity + $file_churn_complexity_stats{$filepath}{sum_complexity};
 			$file_churn_complexity_stats{$filepath}{funct_count} = $file_churn_complexity_stats{$filepath}{funct_count} + 1;
 
@@ -154,29 +156,6 @@ sub export_file_churn_complexity_functions_to_csv {
 
 	close EXPORT_CSV;
 	#print Dumper \%file_churn_complexity_stats;
-}
-
-sub build_churn_complexity {
-	my ($db, %file_churn_stats) = @_;
-
-	my %file_churn_complexity_stats;
-	# git rev-list 에서는 찾아졌지만 udb 에는 없는 파일이 있다!!!
-	foreach (sort {($file_churn_stats{$b}{commits} <=> $file_churn_stats{$a}{commits}) or
-		           (lc $a cmp lc $b)} keys %file_churn_stats ) {
-	#	print "'$_': $file_churn_stats{$_}{commits} commits\n";
-		my ($complexity, $count, $max, $max_funct_name, %file_complexity_stats) = get_file_complexity($_, $db);
-		next unless %file_complexity_stats;
-
-		$file_churn_complexity_stats{$_}{commits}   = $file_churn_stats{$_}{commits};
-		$file_churn_complexity_stats{$_}{complexity}= $complexity;
-		$file_churn_complexity_stats{$_}{funct_count}  = $count;
-		$file_churn_complexity_stats{$_}{max_complexity}= $max;
-		$file_churn_complexity_stats{$_}{max_complexity_funct_name} = $max_funct_name;
-		$file_churn_complexity_stats{$_}{functions} = \%file_complexity_stats;
-#		print "$_ (commit, ccn) = ($file_churn_complexity_stats{$_}{commits}, $file_churn_complexity_stats{$_}{complexity})\n";
-	}
-#	print Dumper \%file_churn_complexity_stats;
-	return %file_churn_complexity_stats;
 }
 
 print "   (1/4) Read file commits ($target_dir/file_churn.csv) " if $verbose_flag;

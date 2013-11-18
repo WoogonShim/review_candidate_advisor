@@ -62,8 +62,10 @@ sub check_prerequisite($) {
 sub build_und_database($$) {
 	my ($target_dir,$languages) = @_;
 
+	my $target_und_db_file = "$output_dir/$target_dir/$target_dir.udb";
+
 	my $BUILD_DATABASE_COMMAND = "und -quiet "
-	."create -db $output_dir/$target_dir/$target_dir.udb -languages $languages "
+	."create -db $target_und_db_file -languages $languages "
 	."-JavaVersion java6 "
 	."add "
 		."-exclude .git "
@@ -79,10 +81,10 @@ sub build_und_database($$) {
 	system($BUILD_DATABASE_COMMAND);
 
 	my $ANALYZE_DATABASE_COMMAND = 
-		"und -quite analyze -db $output_dir/$target_dir/$target_dir.udb";
+		"und -quite analyze -db $target_und_db_file";
 
 	if ( ! open(ANALYZE_DATABASE,'-|', $ANALYZE_DATABASE_COMMAND) ) {
-	    die "Failed to process 'und analyze -db $output_dir/$target_dir/$target_dir.udb': $!\n";
+	    die "Failed to process 'und analyze -db $target_und_db_file': $!\n";
 	}
 	while(my $db_analysis = <ANALYZE_DATABASE>) {
 		chomp $db_analysis;
@@ -201,8 +203,9 @@ sub get_language_pattern_str (\@) {
 
 sub build_churn_complexity {
 	my ($target_dir) = shift(@_);
-
-	system("und uperl und.file.complexity.pl -db $output_dir/$target_dir/$target_dir.udb -v");
+	
+	my $target_und_db_file = "$output_dir/$target_dir/$target_dir.udb";
+	system("und uperl und.file.complexity.pl -db $target_und_db_file -v");
 }
 
 # print "0) $ARGV[0]\n";
