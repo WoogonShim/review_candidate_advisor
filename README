@@ -1,20 +1,35 @@
+Purpose
+=======
+
+Source files which was commited frequently and has high complexity are risky item to be reviewed and/or refactored.
+
+See also: http://www.stickyminds.com/sitewide.asp?Function=edetail&ObjectType=COL&ObjectId=16679
+
 Prerequisite
 ============
 
    * Perl > 5.x
-   * Scitools Understand > 3.x above
-      : PATH environment should be include the directory path where 'und' executable exists
+   * Scitools Understand >= 3.1 above (build >= 676)
+
+PATH environment should be include the directory path where 'und' and 'perl' executable exists
+
+Component(s)
+============
+
+   * churn.ccn.analyzer.pl   // main script (calls und.file.complexity.pl)
+   * und.file.complexity.pl  // by using understand CLI, to get loc and complelxity
 
 Instruction
 ============
 
-Copy two script files (churn.ccn.analyzer.pl and und.file.complexity.pl) at the upper directory of target git repositories.
+Copy two script files (churn.ccn.analyzer.pl and und.file.complexity.pl) at the parent directory of target git repositories.
 
 Usage(s)
 ========
 
-   $ churn.ccn.analyzer.pl [git repo] [language] [since]
-      - git repo    directory name of target git repository
+   $ churn.ccn.analyzer.pl [git path] [language] [since]
+
+      - git path    directory path of target git repository
 
       - language    supported langauge: c++, java, web
 
@@ -24,7 +39,7 @@ Usage(s)
 
                     you can use compound form: "c++", "java", "c++ java web"
 
-      - since       (optional) you can dignate specific starting date
+      - since       (optional) you can designate specific starting date, not whole history
 
 Examples
 ========
@@ -32,4 +47,26 @@ Examples
    $ churn.ccn.analyzer.pl junit "java" 
    $ churn.ccn.analyzer.pl git "c++" "one month ago"
    $ churn.ccn.analyzer.pl junit "java" "2013-12-01"
+
+Output
+======
+
+Result will be stored at git path under 'churn-complexity-output' directory.
+
+   * file_churn_complexity.csv
+      - filename
+      - commits (churn)
+      - file complexity
+      - number of function
+      - function name which has max cyclomatic complexity in the file
+      - max cyclomatic complexity
+   * file_churn_complexity_functions.csv
+      - filename (line position)
+      - function name
+      - cyclomatic complexity ('Cyclomatic' metric)
+      - sloc ('CountLineCode' metric)
+
+cf) File complexity is calculated as followed:
+
+   (Sum of complexity of all function in the file) - (number of function in the file) + 1
 
