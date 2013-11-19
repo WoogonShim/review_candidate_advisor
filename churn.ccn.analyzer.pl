@@ -2,9 +2,11 @@
 
 use strict;
 use warnings;
-use File::Path qw(make_path);
-use File::Spec::Functions qw( catfile path );
+use File::Path qw( make_path );
+use File::Basename qw( dirname basename );
+use File::Spec::Functions qw( catfile path curdir abs2rel );
 use Data::Dumper;
+use Cwd;
 
 # ======================== USER CUSTOMIZING DATA ====================
 our $output_dir = "churn-complexity-output";
@@ -20,7 +22,8 @@ our %language_patterns = (
 # ======================== USER CUSTOMIZING DATA ====================
 
 use constant PATH => path;
-use constant PATHEXT => split /;/, $ENV{PATHEXT};
+use constant PATHEXT => path;
+#use constant PATHEXT => split /;/, $ENV{PATHEXT};
 
 sub which {
 	my $name = shift;
@@ -31,6 +34,8 @@ sub which {
 		map { $name . lc $_ } (q{}, PATHEXT);
 }
 
+our $working_dir = cwd();
+
 sub check_prerequisite($) {
 	my $target_dir = shift(@_);
 
@@ -39,8 +44,12 @@ sub check_prerequisite($) {
 		return "";
 	}
 
-	if (! -d "$output_dir/$target_dir") {
-		make_path "$output_dir/$target_dir";
+	my $dirnames    = dirname(abs2rel($target_dir, curdir()));
+	my $target_name = basename($target_dir);
+	my $_target_dir = "$output_dir/$dirnames/$target_name";
+
+	if (! -d $_target_dir) {
+		make_path $_target_dir;
 	}
 
 	my $und_exists = which('und');
@@ -55,14 +64,16 @@ sub check_prerequisite($) {
 		print "'$target_dir' is not a git repository!\n";
 		return "";
 	}
-	chdir "..";
+	chdir $working_dir;
 	return 1;
 }
 
 sub build_und_database($$) {
 	my ($target_dir,$languages) = @_;
 
-	my $target_und_db_file = "$output_dir/$target_dir/$target_dir.udb";
+	my $dirnames    = dirname(abs2rel($target_dir, curdir()));
+	my $target_name = basename($target_dir);
+	my $target_und_db_file = catfile("$output_dir/$dirnames/$target_name", "$target_name.udb");
 
 	my $BUILD_DATABASE_COMMAND = "und -quiet "
 	."create -db $target_und_db_file -languages $languages "
@@ -72,11 +83,12 @@ sub build_und_database($$) {
 		."-subdir on $target_dir "
 	."settings "
 		 ."-metrics "
-		 	."CountLineCodeExe "
+		 	."CountLineCode "
 		 	."Cyclomatic "
 		 	."MaxCyclomatic "
 		 	."MaxNesting "
-		 ."-metricsOutputFile $output_dir/$target_dir/metrics.csv";
+		 ."-metricsOutputFile "
+		 .catfile("$output_dir/$dirnames/$target_name", "metrics.csv");
 #	print "$BUILD_DATABASE_COMMAND\n";	
 	system($BUILD_DATABASE_COMMAND);
 
@@ -141,7 +153,7 @@ sub get_file_churn($\@;$) {
 	my %file_stats;
 	while(my $churn_line = <GIT_REV_LIST>) {
 		chomp $churn_line;
-		if ($churn_line =~ m{^(\d+)\s+(.+)} ) {
+		if ($churn_line =~ m{(\d+)\s+(.+)} ) {
 			my $frequency= $1;
 			my $filename = $2;
 
@@ -155,16 +167,19 @@ sub get_file_churn($\@;$) {
 	my $number_of_items = keys %file_stats;
 
 	close GIT_REV_LIST;	
-	chdir "..";
+	chdir $working_dir;
 	return %file_stats;
 }
 
 sub export_file_churn_to_csv {
 	my ($target_dir, %file_stats) = @_;
 
-	my $file_churn_file_path = catfile("$output_dir/$target_dir", "file_churn.csv");
+	my $dirnames             = dirname(abs2rel($target_dir, curdir()));
+	my $target_name          = basename($target_dir);
+	my $file_churn_file_path = catfile("$output_dir/$dirnames/$target_name", "file_churn.csv");
+
 	open(FILE_CHURN, '>:encoding(UTF-8)', $file_churn_file_path)
-		or die "Couldn't open 'file_churn.csv': $1\n";
+		or die "Couldn't open 'file_churn.csv': $!\n";
 
 	print FILE_CHURN "filename, commits\n";
 	# sort 1) commits desc 2) filename asc with lowercase
@@ -204,24 +219,27 @@ sub get_language_pattern_str (\@) {
 sub build_churn_complexity {
 	my ($target_dir) = shift(@_);
 
-	my $target_und_db_file = "$output_dir/$target_dir/$target_dir.udb";
-	system("und uperl und.file.complexity.pl -db $target_und_db_file -v");
+	my $dirnames    = dirname(abs2rel($target_dir, curdir()));
+	my $target_name = basename($target_dir);
+	my $target_und_db_file = catfile("$output_dir/$dirnames/$target_name", "$target_name.udb");
+	system("und uperl und.file.complexity.pl $target_dir -db $target_und_db_file -v");
 }
 
 # print "0) $ARGV[0]\n";
 # print "1) $ARGV[1]\n";
 
 #TODO: Usage 출력 및 파라미터 파싱 필요
-my $target_dir = $ARGV[0];
+my $target_dir  = $ARGV[0];
 my @languages = to_languages_array(lc $ARGV[1]);
 
-print "1/5) Check prerequisites (und in PATH and target is git repo.) ";
+print "1/5) Check prerequisites ('und' in PATH and target is git repo.) ";
 print "...Error!!\n" and exit unless check_prerequisite($target_dir);
 print "... Done\n";
 print "2/5) Retrieve last recently modified files ";
 my %file_stats = get_file_churn($target_dir, @languages, $ARGV[2]);
 print "... Done (total ", scalar keys %file_stats, " files)\n";
-print "3/5) Export file churn to csv ($target_dir/file_churn.csv) ";
+my $file_churn_file_path = catfile(basename($target_dir), "file_churn.csv");
+print "3/5) Export file churn to csv ($file_churn_file_path) ";
 export_file_churn_to_csv($target_dir, %file_stats);
 #print Dumper \%file_stats;
 print "... Done\n";
