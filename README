@@ -3,6 +3,7 @@ Prerequisite
 
    * Perl > 5.x
    * Scitools Understand > 3.x above
+      : PATH environment should be include the directory path where 'und' executable exists
 
 Instruction
 ============
