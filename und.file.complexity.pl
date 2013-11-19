@@ -18,8 +18,8 @@ my $db = Understand::CommandLine::db();
 our $target_dir = basename($db->name(), ".udb");
 my  $dblanguage = $db->language();
 
-if ($dblanguage !~ /c|java/i) {
-    closeDatabase($db);
+if ($dblanguage !~ /c|java|web/i) {
+    $db->close();
     die "$dblanguage is currently unsupported";
 }
 
@@ -59,14 +59,16 @@ sub build_churn_complexity {
 	my ($db, %file_churn_stats) = @_;
 
 	my %file_churn_complexity_stats = ();
-	foreach my $func ($db->ents("C Function ~Unresolved ~Unknown ~Unused, Java Method ~Unresolved ~Unknown ~Unused")) {
+	foreach my $func ($db->ents("Function ~Unresolved ~Unknown ~Unused, Method ~Unresolved ~Unknown ~Unused")) {
 		my $def      = $func->ref("definein");
 		my $filename = $def->file->name();
 		my $filepath = to_unix_path(abs2rel($def->file->longname(), $target_dir));
 
  		if (defined ($file_churn_stats{$filepath})) {
-# 			print $func->name," from ",$def->file->name(),"\n";
+# 			print $func->name," from ",$filename,"\n";
 			my $complexity = $func->metric("Cyclomatic");
+			my $sloc       = $func->metric("CountLineCode");
+
 			if( !defined( $complexity ) ) {
 				next;
 			}
@@ -88,7 +90,8 @@ sub build_churn_complexity {
 				$file_churn_complexity_stats{$filepath}{max_complexity_funct_name} = $func->name;
 			}
 			$file_churn_complexity_stats{$filepath}{functions}{$func->name}{complexity} = $complexity;
-			$file_churn_complexity_stats{$filepath}{functions}{$func->name}{line}       = $def->line;
+			$file_churn_complexity_stats{$filepath}{functions}{$func->name}{sloc}       = $sloc;
+			$file_churn_complexity_stats{$filepath}{functions}{$func->name}{line_at}    = $def->line;
  		}
  	}
 
@@ -139,7 +142,7 @@ sub export_file_churn_complexity_functions_to_csv {
 	open(EXPORT_CSV, '>:encoding(UTF-8)', $export_filepath)
 		or die "Couldn't open 'file_churn_complexity_functions.csv': $1\n";
 
-	print EXPORT_CSV "filename (line), function, complexity\n";
+	print EXPORT_CSV "filename (line), function, complexity, sloc\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
 	foreach (sort {($file_churn_complexity_stats{$b}{commits}    <=> $file_churn_complexity_stats{$a}{commits}) or
                    ($file_churn_complexity_stats{$b}{complexity} <=> $file_churn_complexity_stats{$a}{complexity}) or
@@ -149,8 +152,8 @@ sub export_file_churn_complexity_functions_to_csv {
 		my %functions = %{$file_churn_complexity_stats{$_}{functions}};
 		foreach (sort {($functions{$b}{complexity} <=> $functions{$a}{complexity}) or
 		               (lc $a cmp lc $b)} keys %functions ) {
-#			print "$filename ($functions{$_}{line}), $_, $functions{$_}{complexity}\n";
-        	print EXPORT_CSV "$filename ($functions{$_}{line}), $_, $functions{$_}{complexity}\n";
+#			print "$filename ($functions{$_}{line_at}), $_, $functions{$_}{complexity}, $functions{$_}{sloc}\n";
+        	print EXPORT_CSV "$filename ($functions{$_}{line_at}), $_, $functions{$_}{complexity}, $functions{$_}{sloc}\n";
         }
     }
 

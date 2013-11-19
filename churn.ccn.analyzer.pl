@@ -203,7 +203,7 @@ sub get_language_pattern_str (\@) {
 
 sub build_churn_complexity {
 	my ($target_dir) = shift(@_);
-	
+
 	my $target_und_db_file = "$output_dir/$target_dir/$target_dir.udb";
 	system("und uperl und.file.complexity.pl -db $target_und_db_file -v");
 }
