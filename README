@@ -16,6 +16,10 @@ PATH environment should be include the directory path where 'und' and 'perl' exe
 Component(s)
 ============
 
+   * run.at                  // batch file for large project
+   * listing.all.repos.from  // listing all git repos at the specificed position
+   * gathering.all.repos.from// execute churn.ccn.analyzer.pl for each git
+
    * churn.ccn.analyzer.pl   // main script (calls und.file.complexity.pl)
    * und.file.complexity.pl  // by using understand CLI, to get loc and complelxity
 
