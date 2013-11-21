@@ -17,7 +17,7 @@ $verbose_flag = "-v" eq lc $ARGV[3] if (defined ($ARGV[3]));
 my $db = Understand::CommandLine::db();
 
 our $base_dir   = dirname($db->name());
-our $target_dir = rel2abs($ARGV[2], curdir());
+our $target_dir = rel2abs($ARGV[2]);
 
 my  $dblanguage = $db->language();
 
