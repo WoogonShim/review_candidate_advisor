@@ -49,6 +49,10 @@ sub check_prerequisite($) {
 		return "";
 	}
 
+	# print "\n";
+	# print "\t RESULT_DIR : $result_dir\n";
+	# print "\t TARGET_DIR : $target_dir\n";
+
 	if (! -d $result_dir) {
 		make_path $result_dir;
 	}
@@ -175,6 +179,11 @@ sub export_file_churn_to_csv {
 	my ($target_dir, %file_stats) = @_;
 
 	my $file_churn_file_path = catfile($result_dir, "file_churn.csv");
+
+	open(FILE_COUNT, ">", catfile($result_dir, "file-count"))
+		or die "Couldn't open 'file-count': $!\n";
+	print FILE_COUNT scalar keys %file_stats;
+	close FILE_COUNT;
 
 	open(FILE_CHURN, '>:encoding(UTF-8)', $file_churn_file_path)
 		or die "Couldn't open 'file_churn.csv': $!\n";
