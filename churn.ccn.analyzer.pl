@@ -4,9 +4,9 @@ use strict;
 use warnings;
 use File::Path qw( make_path );
 use File::Basename qw( dirname basename );
-use File::Spec::Functions qw( catfile path curdir abs2rel );
+use File::Spec::Functions qw( catfile path curdir abs2rel rel2abs );
 use Data::Dumper;
-use Cwd;
+use Cwd qw(abs_path cwd );
 
 # ======================== USER CUSTOMIZING DATA ====================
 our $output_dir = "churn-complexity-output";
@@ -34,7 +34,12 @@ sub which {
 		map { $name . lc $_ } (q{}, PATHEXT);
 }
 
+our $target_dir  = abs_path($ARGV[0]);
 our $working_dir = cwd();
+
+our $dirnames    = dirname(rel2abs($target_dir, $working_dir));
+our $target_name = basename($target_dir);
+our $result_dir  = "$output_dir$dirnames/$target_name";
 
 sub check_prerequisite($) {
 	my $target_dir = shift(@_);
@@ -44,12 +49,8 @@ sub check_prerequisite($) {
 		return "";
 	}
 
-	my $dirnames    = dirname(abs2rel($target_dir, curdir()));
-	my $target_name = basename($target_dir);
-	my $_target_dir = "$output_dir/$dirnames/$target_name";
-
-	if (! -d $_target_dir) {
-		make_path $_target_dir;
+	if (! -d $result_dir) {
+		make_path $result_dir;
 	}
 
 	my $und_exists = which('und');
@@ -71,9 +72,7 @@ sub check_prerequisite($) {
 sub build_und_database($$) {
 	my ($target_dir,$languages) = @_;
 
-	my $dirnames    = dirname(abs2rel($target_dir, curdir()));
-	my $target_name = basename($target_dir);
-	my $target_und_db_file = catfile("$output_dir/$dirnames/$target_name", "$target_name.udb");
+	my $target_und_db_file = catfile($result_dir, "$target_name.udb");
 
 	my $BUILD_DATABASE_COMMAND = "und -quiet "
 	."create -db $target_und_db_file -languages $languages "
@@ -88,7 +87,7 @@ sub build_und_database($$) {
 		 	."MaxCyclomatic "
 		 	."MaxNesting "
 		 ."-metricsOutputFile "
-		 .catfile("$output_dir/$dirnames/$target_name", "metrics.csv");
+		 .catfile($result_dir, "metrics.csv");
 #	print "$BUILD_DATABASE_COMMAND\n";	
 	system($BUILD_DATABASE_COMMAND);
 
@@ -174,9 +173,7 @@ sub get_file_churn($\@;$) {
 sub export_file_churn_to_csv {
 	my ($target_dir, %file_stats) = @_;
 
-	my $dirnames             = dirname(abs2rel($target_dir, curdir()));
-	my $target_name          = basename($target_dir);
-	my $file_churn_file_path = catfile("$output_dir/$dirnames/$target_name", "file_churn.csv");
+	my $file_churn_file_path = catfile($result_dir, "file_churn.csv");
 
 	open(FILE_CHURN, '>:encoding(UTF-8)', $file_churn_file_path)
 		or die "Couldn't open 'file_churn.csv': $!\n";
@@ -219,9 +216,7 @@ sub get_language_pattern_str (\@) {
 sub build_churn_complexity {
 	my ($target_dir) = shift(@_);
 
-	my $dirnames    = dirname(abs2rel($target_dir, curdir()));
-	my $target_name = basename($target_dir);
-	my $target_und_db_file = catfile("$output_dir/$dirnames/$target_name", "$target_name.udb");
+	my $target_und_db_file = catfile($result_dir, "$target_name.udb");
 	system("und uperl und.file.complexity.pl $target_dir -db $target_und_db_file -v");
 }
 
@@ -229,8 +224,8 @@ sub build_churn_complexity {
 # print "1) $ARGV[1]\n";
 
 #TODO: Usage 출력 및 파라미터 파싱 필요
-my $target_dir  = $ARGV[0];
 my @languages = to_languages_array(lc $ARGV[1]);
+
 
 print "1/5) Check prerequisites ('und' in PATH and target is git repo.) ";
 print "...Error!!\n" and exit unless check_prerequisite($target_dir);
@@ -251,4 +246,4 @@ print "5/5) Report result \n";
 build_churn_complexity($target_dir);
 #print Dumper \%file_stats;
 print "... Done\n";
-print "See result at '$output_dir/$target_dir' directory\n";
+print "See result at '$result_dir' directory\n";
