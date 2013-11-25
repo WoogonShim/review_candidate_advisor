@@ -26,6 +26,9 @@ if ($dblanguage !~ /c|java|web/i) {
     die "$dblanguage is currently unsupported";
 }
 
+# Define global scope for referencing from each Comparator
+my %file_churn_complexity_stats = ();
+
 sub read_file_churn_csv {
 	my $file_churn_file_path = catfile($base_dir, "file_churn.csv");
 
@@ -66,15 +69,15 @@ sub get_extension {
 }
 
 sub build_churn_complexity {
-	my ($db, %file_churn_stats) = @_;
+	my ($db, $file_churn_stats) = @_;
 
-	my %file_churn_complexity_stats = ();
+	my %stats = ();
 	foreach my $func ($db->ents("Function ~Unresolved ~Unknown ~Unused, Method ~Unresolved ~Unknown ~Unused")) {
 		my $def      = $func->ref("definein");
 		my $filename = $def->file->name();
 		my $filepath = to_unix_path(abs2rel($def->file->longname(), $target_dir));
 
- 		if (defined ($file_churn_stats{$filepath})) {
+ 		if (defined ($file_churn_stats->{$filepath})) {
 # 			print $func->name," from ",$filename,"\n";
 			my $complexity = $func->metric("Cyclomatic");
 			my $sloc       = $func->metric("CountLineCode");
@@ -84,70 +87,133 @@ sub build_churn_complexity {
 			}
 
 			# initialize hash item values
-			$file_churn_complexity_stats{$filepath}{sum_complexity} = 0 if (!defined( $file_churn_complexity_stats{$filepath}{sum_complexity}));
-			$file_churn_complexity_stats{$filepath}{funct_count} = 0 if (!defined( $file_churn_complexity_stats{$filepath}{funct_count}));
-			$file_churn_complexity_stats{$filepath}{max_complexity} = 0 if (!defined( $file_churn_complexity_stats{$filepath}{max_complexity}));
-	 		$file_churn_complexity_stats{$filepath}{commits} = 
-	 			$file_churn_stats{$filepath}{commits} if (!defined( $file_churn_complexity_stats{$filepath}{commits}));
+			$stats{$filepath}{sum_complexity} = 0 if (!defined( $stats{$filepath}{sum_complexity}));
+			$stats{$filepath}{funct_count} = 0 if (!defined( $stats{$filepath}{funct_count}));
+			$stats{$filepath}{avg_complexity} = 0 if (!defined( $stats{$filepath}{avg_complexity}));
+			$stats{$filepath}{max_complexity} = 0 if (!defined( $stats{$filepath}{max_complexity}));
+	 		$stats{$filepath}{commits} =
+	 			$file_churn_stats->{$filepath}{commits} if (!defined( $stats{$filepath}{commits}));
 
-			$file_churn_complexity_stats{$filepath}{sum_complexity} = $complexity + $file_churn_complexity_stats{$filepath}{sum_complexity};
-			$file_churn_complexity_stats{$filepath}{funct_count} = $file_churn_complexity_stats{$filepath}{funct_count} + 1;
+			$stats{$filepath}{sum_complexity} = $complexity + $stats{$filepath}{sum_complexity};
+			$stats{$filepath}{funct_count} = $stats{$filepath}{funct_count} + 1;
 
-			my $max = $file_churn_complexity_stats{$filepath}{max_complexity};
+			my $max = $stats{$filepath}{max_complexity};
 			if($max <= $complexity) {
 				$max            = $complexity;
-				$file_churn_complexity_stats{$filepath}{max_complexity} = $max;
-				$file_churn_complexity_stats{$filepath}{max_complexity_funct_name} = $func->name;
+				$stats{$filepath}{max_complexity} = $max;
+				$stats{$filepath}{max_complexity_funct_name} = $func->name;
 			}
-			$file_churn_complexity_stats{$filepath}{functions}{$func->name}{complexity} = $complexity;
-			$file_churn_complexity_stats{$filepath}{functions}{$func->name}{sloc}       = $sloc;
-			$file_churn_complexity_stats{$filepath}{functions}{$func->name}{line_at}    = $def->line;
+			$stats{$filepath}{functions}{$func->name}{complexity} = $complexity;
+			$stats{$filepath}{functions}{$func->name}{sloc}       = $sloc;
+			$stats{$filepath}{functions}{$func->name}{line_at}    = $def->line;
  		}
  	}
 
  	# hash 에서 sum_complexity 값이 없거나 0 인 녀석들을 삭제하고 반환한다.
- 	foreach my $filepath (keys %file_churn_complexity_stats) {
- 		if (defined ($file_churn_complexity_stats{$filepath}{sum_complexity})) {
- 			$file_churn_complexity_stats{$filepath}{complexity} = 
- 				$file_churn_complexity_stats{$filepath}{sum_complexity} - 
- 				$file_churn_complexity_stats{$filepath}{funct_count} + 1;
-#		print "$filepath (commit, ccn) = ($file_churn_complexity_stats{$_}{commits}, $file_churn_complexity_stats{$_}{complexity})\n";
+ 	foreach my $filepath (keys %stats) {
+ 		if (defined ($stats{$filepath}{sum_complexity})) {
+ 			$stats{$filepath}{file_complexity} =
+ 				$stats{$filepath}{sum_complexity} -
+ 				$stats{$filepath}{funct_count} + 1;
+ 			$stats{$filepath}{avg_complexity} =
+ 				$stats{$filepath}{sum_complexity} /
+ 				$stats{$filepath}{funct_count};
+#		print "$filepath (commit, ccn) = ($stats{$_}{commits}, $stats{$_}{complexity})\n";
  		}
  		else {
-	 		delete $file_churn_complexity_stats{$filepath} 			
+ 			delete $stats{$filepath};
  		}
  	}
-#	print Dumper \%file_churn_complexity_stats;
-	return %file_churn_complexity_stats;
+#	print Dumper \%stats;
+	return %stats;
 }
 
-sub export_file_churn_complexity_to_csv {
-	my (%file_churn_complexity_stats) = @_;
+# Comparator
+# sort 1) commits desc 2) max complexity desc, 3) function name asc with lowercase, 4) filename asc with lowercase
+# sub by_max_complexity {
+# 	( $file_churn_complexity_stats{$b}{'commits'} <=> $file_churn_complexity_stats{$a}{'commits'} )
+# 		or
+# 	( $file_churn_complexity_stats{$b}{'max_complexity'} <=> $file_churn_complexity_stats{$a}{'max_complexity'} )
+# 		or
+# 	( lc $file_churn_complexity_stats{$a}{'max_complexity_funct_name'} cmp lc $file_churn_complexity_stats{$b}{'max_complexity_funct_name'} ) 
+# 		or
+# 	( lc $a cmp lc $b )
+# }
+
+# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
+# sub by_file_complexity {
+# 	( $file_churn_complexity_stats{$b}{'commits'} <=> $file_churn_complexity_stats{$a}{'commits'} )
+# 		or
+# 	( $file_churn_complexity_stats{$b}{'file_complexity'} <=> $file_churn_complexity_stats{$a}{'file_complexity'} )
+# 		or
+# 	( lc $a cmp lc $b )
+# }
+
+sub export_csv_sorted_by_file_complexity {
+	my ($file_churn_complexity_stats) = @_;
 
 	my $file_churn_ccn_file_path = catfile($base_dir, "file_churn_complexity.csv");
 
 	open(FILE_CHURN_COMPLEXITY, '>:encoding(UTF-8)', $file_churn_ccn_file_path)
 		or die "Couldn't open 'file_churn_complexity.csv': $1\n";
 
-	print FILE_CHURN_COMPLEXITY "filename, commits, complexity, # of function, max function name, max complexity\n";
+	print FILE_CHURN_COMPLEXITY "filename, commits, file complexity, # of function, avg complexity, max function name, max complexity\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
-	foreach (sort {($file_churn_complexity_stats{$b}{commits}    <=> $file_churn_complexity_stats{$a}{commits}) or
-                   ($file_churn_complexity_stats{$b}{complexity} <=> $file_churn_complexity_stats{$a}{complexity}) or
-		           (lc $a cmp lc $b)} keys %file_churn_complexity_stats ) {
-		print FILE_CHURN_COMPLEXITY "$_, " 
-		      ."$file_churn_complexity_stats{$_}{commits}, "
-		      ."$file_churn_complexity_stats{$_}{complexity}, "
-		      ."$file_churn_complexity_stats{$_}{funct_count}, "
-		      ."$file_churn_complexity_stats{$_}{max_complexity_funct_name}, "
-		      ."$file_churn_complexity_stats{$_}{max_complexity}\n";
+	foreach (sort {
+	( $file_churn_complexity_stats->{$b}{'commits'} <=> $file_churn_complexity_stats->{$a}{'commits'} )
+		or
+	( $file_churn_complexity_stats->{$b}{'file_complexity'} <=> $file_churn_complexity_stats->{$a}{'file_complexity'} )
+		or
+	( lc $a cmp lc $b )
+} keys %{$file_churn_complexity_stats} ) {
+		print FILE_CHURN_COMPLEXITY "$_, "
+		      ,"$file_churn_complexity_stats->{$_}{'commits'}, "
+		      ,"$file_churn_complexity_stats->{$_}{'file_complexity'}, "
+		      ,"$file_churn_complexity_stats->{$_}{'funct_count'}, "
+		      ,"$file_churn_complexity_stats->{$_}{'avg_complexity'}, "
+		      ,"$file_churn_complexity_stats->{$_}{'max_complexity_funct_name'}, "
+		      ,"$file_churn_complexity_stats->{$_}{'max_complexity'} \n";
 	}
 
 	close FILE_CHURN_COMPLEXITY;
-	#print Dumper \%file_churn_complexity_stats;
+	#print Dumper \%{$file_churn_complexity_stats};
+}
+
+sub export_csv_sorted_by_max_function_complexity {
+	my ($file_churn_complexity_stats) = @_;
+
+	my $file_churn_ccn_max_file_path = catfile($base_dir, "file_churn_complexity_max.csv");
+
+	open(FILE_CHURN_COMPLEXITY_MAX, '>:encoding(UTF-8)', $file_churn_ccn_max_file_path)
+		or die "Couldn't open 'file_churn_complexity_max.csv': $1\n";
+
+	print FILE_CHURN_COMPLEXITY_MAX "filename, max function name, commits, max complexity, file complexity, # of function, avg complexity\n";
+	# sort 1) commits desc 2) max complexity desc, 3) filename asc with lowercase
+	foreach (sort {
+	( $file_churn_complexity_stats->{$b}{'commits'} <=> $file_churn_complexity_stats->{$a}{'commits'} )
+		or
+	( $file_churn_complexity_stats->{$b}{'max_complexity'} <=> $file_churn_complexity_stats->{$a}{'max_complexity'} )
+		or
+	( lc $file_churn_complexity_stats->{$a}{'max_complexity_funct_name'} cmp lc $file_churn_complexity_stats->{$b}{'max_complexity_funct_name'} ) 
+		or
+	( lc $a cmp lc $b )
+} keys %{$file_churn_complexity_stats} ) {
+		print FILE_CHURN_COMPLEXITY_MAX "$_, "
+		      ."$file_churn_complexity_stats->{$_}{'max_complexity_funct_name'}, "
+		      ."$file_churn_complexity_stats->{$_}{'commits'}, "
+		      ."$file_churn_complexity_stats->{$_}{'max_complexity'}, "
+		      ."$file_churn_complexity_stats->{$_}{'file_complexity'}, "
+		      ."$file_churn_complexity_stats->{$_}{'funct_count'}, "
+		      ."$file_churn_complexity_stats->{$_}{'avg_complexity'}"
+		      ."\n";
+	}
+
+	close FILE_CHURN_COMPLEXITY_MAX;
+	#print Dumper \%{$file_churn_complexity_stats};
 }
 
 sub export_file_churn_complexity_functions_to_csv {
-	my (%file_churn_complexity_stats) = @_;
+	my ($file_churn_complexity_stats) = @_;
 
 	my $export_filepath = catfile($base_dir, "file_churn_complexity_functions.csv");
 
@@ -156,12 +222,16 @@ sub export_file_churn_complexity_functions_to_csv {
 
 	print EXPORT_CSV "filename (line), function, complexity, sloc\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
-	foreach (sort {($file_churn_complexity_stats{$b}{commits}    <=> $file_churn_complexity_stats{$a}{commits}) or
-                   ($file_churn_complexity_stats{$b}{complexity} <=> $file_churn_complexity_stats{$a}{complexity}) or
-		           (lc $a cmp lc $b)} keys %file_churn_complexity_stats ) {
+	foreach (sort {
+	( $file_churn_complexity_stats->{$b}{'commits'} <=> $file_churn_complexity_stats->{$a}{'commits'} )
+		or
+	( $file_churn_complexity_stats->{$b}{'file_complexity'} <=> $file_churn_complexity_stats->{$a}{'file_complexity'} )
+		or
+	( lc $a cmp lc $b )
+} keys %{$file_churn_complexity_stats} ) {
 		my $filename = $_;
 
-		my %functions = %{$file_churn_complexity_stats{$_}{functions}};
+		my %functions = %{$file_churn_complexity_stats->{$_}{functions}};
 		foreach (sort {($functions{$b}{complexity} <=> $functions{$a}{complexity}) or
 		               (lc $a cmp lc $b)} keys %functions ) {
 #			print "$filename ($functions{$_}{line_at}), $_, $functions{$_}{complexity}, $functions{$_}{sloc}\n";
@@ -170,23 +240,30 @@ sub export_file_churn_complexity_functions_to_csv {
     }
 
 	close EXPORT_CSV;
-	#print Dumper \%file_churn_complexity_stats;
+	#print Dumper \%{$file_churn_complexity_stats};
 }
 
+my $HIGHLIGHT="\e[01;34m";
+my $NORMAL="\e[00m";
+
+print $HIGHLIGHT,"   =========================================================", "$NORMAL\n";
+print $HIGHLIGHT,"    Calculate cyclomatic complexity by using Understand ", "$NORMAL\n";
+print $HIGHLIGHT,"   =========================================================", "$NORMAL\n";
 print "   (1/4) Read file commits (file_churn.csv) " if $verbose_flag;
 my %file_churn_stats = read_file_churn_csv();
 print "\t... Done\n" if $verbose_flag;
 print "   (2/4) Build churn complexity (from " .basename($base_dir) .".udb) " if $verbose_flag;
-my %file_churn_complexity_stats = build_churn_complexity($db, %file_churn_stats);
+%file_churn_complexity_stats = build_churn_complexity($db, \%file_churn_stats);
 print "\t... Done\n" if $verbose_flag;
 print "   (3/4) Export churn complexity file " if $verbose_flag;
-export_file_churn_complexity_to_csv(%file_churn_complexity_stats);
+export_csv_sorted_by_file_complexity(\%file_churn_complexity_stats);
+export_csv_sorted_by_max_function_complexity(\%file_churn_complexity_stats);
 print "\t\t... Done\n" if $verbose_flag;
 print "\t ==> (file_churn_complexity.csv)\n" if $verbose_flag;
 print "   (4/4) Export churn complexity function file " if $verbose_flag;
-export_file_churn_complexity_functions_to_csv(%file_churn_complexity_stats);
+export_file_churn_complexity_functions_to_csv(\%file_churn_complexity_stats);
 print "\t... Done\n" if $verbose_flag;
 print "\t ==> (file_churn_complexity_functions.csv)\n" if $verbose_flag;
 
 $db->close();
-print "Reporting churn complexity ... Done!\n" unless $verbose_flag;
+print $HIGHLIGHT,"   Reporting churn complexity ... Done!$NORMAL\n"
