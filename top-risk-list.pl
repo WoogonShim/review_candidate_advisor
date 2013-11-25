@@ -17,9 +17,6 @@ my $dirnames     = dirname(rel2abs($target_dir, $working_dir));
 my $target_name  = basename($target_dir);
 my $result_dir   = "$output_dir$dirnames/$target_name";
 
-# Define global scope for referencing from each Comparator
-my %risky_items = ();
-
 sub get_git_repo_list {
 	my $git_repo_list_filepath = catfile($working_dir, "git-repo-list");
 
@@ -168,35 +165,41 @@ sub top_items_of_all_repo {
 
 # Comparator
 sub by_avg_complexity {
-	( $risky_items{$b}{'commits'} <=> $risky_items{$a}{'commits'} )
+	my ($a, $b, $risky_items) = @_;
+
+	( $risky_items->{$b}{'commits'} <=> $risky_items->{$a}{'commits'} )
 		or
-	( $risky_items{$b}{'avg_complexity'} <=> $risky_items{$a}{'avg_complexity'} )
+	( $risky_items->{$b}{'avg_complexity'} <=> $risky_items->{$a}{'avg_complexity'} )
 		or
-	( lc $risky_items{$a}{'repo_path'} cmp lc $risky_items{$b}{'repo_path'} )
+	( lc $risky_items->{$a}{'repo_path'} cmp lc $risky_items->{$b}{'repo_path'} )
 		or 
-	( lc $risky_items{$a}{'filename'} cmp lc $risky_items{$b}{'filename'} )
+	( lc $risky_items->{$a}{'filename'} cmp lc $risky_items->{$b}{'filename'} )
 }
 
 sub by_max_complexity {
-	( $risky_items{$b}{'commits'} <=> $risky_items{$a}{'commits'} )
+	my ($a, $b, $risky_items) = @_;
+	
+	( $risky_items->{$b}{'commits'} <=> $risky_items->{$a}{'commits'} )
 		or
-	( $risky_items{$b}{'max_complexity'} <=> $risky_items{$a}{'max_complexity'} )
+	( $risky_items->{$b}{'max_complexity'} <=> $risky_items->{$a}{'max_complexity'} )
 		or
-	( lc $risky_items{$a}{'max_function_name'} cmp lc $risky_items{$b}{'max_function_name'} )
+	( lc $risky_items->{$a}{'max_function_name'} cmp lc $risky_items->{$b}{'max_function_name'} )
 		or
-	( lc $risky_items{$a}{'repo_path'} cmp lc $risky_items{$b}{'repo_path'} )
+	( lc $risky_items->{$a}{'repo_path'} cmp lc $risky_items->{$b}{'repo_path'} )
 		or 
-	( lc $risky_items{$a}{'filename'} cmp lc $risky_items{$b}{'filename'} )
+	( lc $risky_items->{$a}{'filename'} cmp lc $risky_items->{$b}{'filename'} )
 }
 
 sub by_file_complexity {
-	( $risky_items{$b}{'commits'} <=> $risky_items{$a}{'commits'} )
+	my ($a, $b, $risky_items) = @_;
+	
+	( $risky_items->{$b}{'commits'} <=> $risky_items->{$a}{'commits'} )
 		or
-	( $risky_items{$b}{'file_complexity'} <=> $risky_items{$a}{'file_complexity'} )
+	( $risky_items->{$b}{'file_complexity'} <=> $risky_items->{$a}{'file_complexity'} )
 		or
-	( lc $risky_items{$a}{'repo_path'} cmp lc $risky_items{$b}{'repo_path'} )
+	( lc $risky_items->{$a}{'repo_path'} cmp lc $risky_items->{$b}{'repo_path'} )
 		or 
-	( lc $risky_items{$a}{'filename'} cmp lc $risky_items{$b}{'filename'} )
+	( lc $risky_items->{$a}{'filename'} cmp lc $risky_items->{$b}{'filename'} )
 }
 
 sub build_csv_header {
@@ -241,9 +244,9 @@ sub export_top_risk_to_csv {
 	my @key_list = ();
 
 	switch($criteria) {
-		case "max"  { @key_list = sort by_max_complexity  keys %{$risky_items}; }
-		case "avg"  { @key_list = sort by_avg_complexity  keys %{$risky_items}; }
-		else        { @key_list = sort by_file_complexity keys %{$risky_items}; }
+		case "max"  { @key_list = sort { by_max_complexity($a, $b, $risky_items);  }  keys %{$risky_items}; }
+		case "avg"  { @key_list = sort { by_avg_complexity($a, $b, $risky_items);  } keys %{$risky_items}; }
+		else        { @key_list = sort { by_file_complexity($a, $b, $risky_items); } keys %{$risky_items}; }
 	}
 
 #	print Dumper \@key_list;
@@ -288,7 +291,7 @@ print $HIGHLIGHT,"1/3) Retrieving all git repository list", "$NORMAL\n";
 my @git_repo_list = get_git_repo_list();
 print "   => total ", $HIGHLIGHT, scalar @git_repo_list, "$NORMAL repos identified.\n";
 print $HIGHLIGHT,"2/3) Screening top risk items from all git repositories", "$NORMAL\n";
-%risky_items = top_items_of_all_repo($criteria, $git_limit, @git_repo_list);
+my %risky_items = top_items_of_all_repo($criteria, $git_limit, @git_repo_list);
 print "   => total ", $HIGHLIGHT, scalar keys %risky_items, "$NORMAL items acquired.\n";
 print $HIGHLIGHT,"3/3) Exporting top $result_limit risk items", "$NORMAL\n";
 export_top_risk_to_csv($criteria, $result_limit, $top_risk_filepath, \%risky_items);
