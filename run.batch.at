@@ -8,7 +8,7 @@ echo -e "${HIGHLIGHT} Doing batch analysis for all sub git repositories${NORMAL}
 echo -e "${HIGHLIGHT}   > at '$1' ${NORMAL}"
 echo -e "${HIGHLIGHT}================================================================================${NORMAL}"
 #./listing.all.repos.from $1
-./scan.at.pl $1
+./scan.all.repos.at.pl $1
 ./gathering.all.repos.data.from
 ./top-risk-list.pl $1 $2 $3
 echo -e "${HIGHLIGHT} Batch analysis completed${NORMAL}"

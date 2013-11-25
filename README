@@ -18,7 +18,7 @@ Component(s)
 
    * run.batch.at            // batch file for large project
    * listing.all.repos.from  // listing all git repos at the specificed position
-   * scan.at.pl              // same script 'listing.all.repos.from' (perl version)
+   * scan.all.repos.at.pl    // same script 'listing.all.repos.from' (perl version)
    * gathering.all.repos.from// execute churn.ccn.analyzer.pl for each git
 
    * churn.ccn.analyzer.pl   // main script (calls und.file.complexity.pl)
@@ -29,8 +29,7 @@ Instruction
 
 1. For analyzing single git
 
-Get modified files from specific date range and Acquire complexity of each file by using Scitools' Understand.
-Then export csv files 'file_churn_complexity.csv' which sorted by churn (commits) and file complexity descending order.
+Get modified files from specific date range and Acquire complexity of each file by using Scitools' Understand. Then export csv files 'file_churn_complexity.csv' which sorted by churn (commits) and file complexity descending order.
 
   Usage
   =====
@@ -76,9 +75,7 @@ Then export csv files 'file_churn_complexity.csv' which sorted by churn (commits
 
 2. For large project which has multiple sub git repositories
 
-Scan all git repositories of project and Run 'churn.ccn.analyzer.pl' script onto each git repository.
-Gather all 'file_churn_complexity.csv' and sorted by churn (commits) and file complexity descending order.
-Export top risky items to be reviewed or refactored to 'top_risk_files.csv'.
+Scan all git repositories of project and Run 'churn.ccn.analyzer.pl' script onto each git repository. Gather all 'file_churn_complexity.csv' and sorted by churn (commits) and file complexity descending order. Export top risky items to be reviewed or refactored to 'top_risk_files.csv'.
 
   Usage
   =====
