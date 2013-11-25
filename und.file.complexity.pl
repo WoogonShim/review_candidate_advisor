@@ -26,14 +26,11 @@ if ($dblanguage !~ /c|java|web/i) {
     die "$dblanguage is currently unsupported";
 }
 
-# Define global scope for referencing from each Comparator
-my %file_churn_complexity_stats = ();
-
 sub read_file_churn_csv {
 	my $file_churn_file_path = catfile($base_dir, "file_churn.csv");
 
 	open(FILE_CHURN, '<:encoding(UTF-8)', $file_churn_file_path)
-		or die "Couldn't open 'file_churn.csv': $1\n";
+		or die "Couldn't open 'file_churn.csv': $!\n";
 
 	my %file_stats;
 	while(my $churn_line = <FILE_CHURN>) {
@@ -130,24 +127,28 @@ sub build_churn_complexity {
 
 # Comparator
 # sort 1) commits desc 2) max complexity desc, 3) function name asc with lowercase, 4) filename asc with lowercase
-# sub by_max_complexity {
-# 	( $file_churn_complexity_stats{$b}{'commits'} <=> $file_churn_complexity_stats{$a}{'commits'} )
-# 		or
-# 	( $file_churn_complexity_stats{$b}{'max_complexity'} <=> $file_churn_complexity_stats{$a}{'max_complexity'} )
-# 		or
-# 	( lc $file_churn_complexity_stats{$a}{'max_complexity_funct_name'} cmp lc $file_churn_complexity_stats{$b}{'max_complexity_funct_name'} ) 
-# 		or
-# 	( lc $a cmp lc $b )
-# }
+sub by_max_complexity {
+	my ($a, $b, $file_churn_complexity_stats) = @_;
+
+	( $file_churn_complexity_stats->{$b}{'commits'} <=> $file_churn_complexity_stats->{$a}{'commits'} )
+		or
+	( $file_churn_complexity_stats->{$b}{'max_complexity'} <=> $file_churn_complexity_stats->{$a}{'max_complexity'} )
+		or
+	( lc $file_churn_complexity_stats->{$a}{'max_complexity_funct_name'} cmp lc $file_churn_complexity_stats->{$b}{'max_complexity_funct_name'} ) 
+		or
+	( lc $a cmp lc $b )
+}
 
 # sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
-# sub by_file_complexity {
-# 	( $file_churn_complexity_stats{$b}{'commits'} <=> $file_churn_complexity_stats{$a}{'commits'} )
-# 		or
-# 	( $file_churn_complexity_stats{$b}{'file_complexity'} <=> $file_churn_complexity_stats{$a}{'file_complexity'} )
-# 		or
-# 	( lc $a cmp lc $b )
-# }
+sub by_file_complexity {
+	my ($a, $b, $file_churn_complexity_stats) = @_;
+
+	( $file_churn_complexity_stats->{$b}{'commits'} <=> $file_churn_complexity_stats->{$a}{'commits'} )
+		or
+	( $file_churn_complexity_stats->{$b}{'file_complexity'} <=> $file_churn_complexity_stats->{$a}{'file_complexity'} )
+		or
+	( lc $a cmp lc $b )
+}
 
 sub export_csv_sorted_by_file_complexity {
 	my ($file_churn_complexity_stats) = @_;
@@ -159,13 +160,7 @@ sub export_csv_sorted_by_file_complexity {
 
 	print FILE_CHURN_COMPLEXITY "filename, commits, file complexity, # of function, avg complexity, max function name, max complexity\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
-	foreach (sort {
-	( $file_churn_complexity_stats->{$b}{'commits'} <=> $file_churn_complexity_stats->{$a}{'commits'} )
-		or
-	( $file_churn_complexity_stats->{$b}{'file_complexity'} <=> $file_churn_complexity_stats->{$a}{'file_complexity'} )
-		or
-	( lc $a cmp lc $b )
-} keys %{$file_churn_complexity_stats} ) {
+	foreach (sort { by_file_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
 		print FILE_CHURN_COMPLEXITY "$_, "
 		      ,"$file_churn_complexity_stats->{$_}{'commits'}, "
 		      ,"$file_churn_complexity_stats->{$_}{'file_complexity'}, "
@@ -189,15 +184,7 @@ sub export_csv_sorted_by_max_function_complexity {
 
 	print FILE_CHURN_COMPLEXITY_MAX "filename, max function name, commits, max complexity, file complexity, # of function, avg complexity\n";
 	# sort 1) commits desc 2) max complexity desc, 3) filename asc with lowercase
-	foreach (sort {
-	( $file_churn_complexity_stats->{$b}{'commits'} <=> $file_churn_complexity_stats->{$a}{'commits'} )
-		or
-	( $file_churn_complexity_stats->{$b}{'max_complexity'} <=> $file_churn_complexity_stats->{$a}{'max_complexity'} )
-		or
-	( lc $file_churn_complexity_stats->{$a}{'max_complexity_funct_name'} cmp lc $file_churn_complexity_stats->{$b}{'max_complexity_funct_name'} ) 
-		or
-	( lc $a cmp lc $b )
-} keys %{$file_churn_complexity_stats} ) {
+	foreach (sort { by_max_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
 		print FILE_CHURN_COMPLEXITY_MAX "$_, "
 		      ."$file_churn_complexity_stats->{$_}{'max_complexity_funct_name'}, "
 		      ."$file_churn_complexity_stats->{$_}{'commits'}, "
@@ -222,13 +209,7 @@ sub export_file_churn_complexity_functions_to_csv {
 
 	print EXPORT_CSV "filename (line), function, complexity, sloc\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
-	foreach (sort {
-	( $file_churn_complexity_stats->{$b}{'commits'} <=> $file_churn_complexity_stats->{$a}{'commits'} )
-		or
-	( $file_churn_complexity_stats->{$b}{'file_complexity'} <=> $file_churn_complexity_stats->{$a}{'file_complexity'} )
-		or
-	( lc $a cmp lc $b )
-} keys %{$file_churn_complexity_stats} ) {
+	foreach (sort { by_file_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
 		my $filename = $_;
 
 		my %functions = %{$file_churn_complexity_stats->{$_}{functions}};
@@ -253,7 +234,7 @@ print "   (1/4) Read file commits (file_churn.csv) " if $verbose_flag;
 my %file_churn_stats = read_file_churn_csv();
 print "\t... Done\n" if $verbose_flag;
 print "   (2/4) Build churn complexity (from " .basename($base_dir) .".udb) " if $verbose_flag;
-%file_churn_complexity_stats = build_churn_complexity($db, \%file_churn_stats);
+my %file_churn_complexity_stats = build_churn_complexity($db, \%file_churn_stats);
 print "\t... Done\n" if $verbose_flag;
 print "   (3/4) Export churn complexity file " if $verbose_flag;
 export_csv_sorted_by_file_complexity(\%file_churn_complexity_stats);
