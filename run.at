@@ -1,4 +1,0 @@
-#!/bin/bash
-
-./listing.all.repos.from $1
-./gathering.all.repos.data.from

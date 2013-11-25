@@ -16,8 +16,9 @@ PATH environment should be include the directory path where 'und' and 'perl' exe
 Component(s)
 ============
 
-   * run.at                  // batch file for large project
+   * run.batch.at            // batch file for large project
    * listing.all.repos.from  // listing all git repos at the specificed position
+   * scan.at.pl              // same script 'listing.all.repos.from' (perl version)
    * gathering.all.repos.from// execute churn.ccn.analyzer.pl for each git
 
    * churn.ccn.analyzer.pl   // main script (calls und.file.complexity.pl)
@@ -26,16 +27,19 @@ Component(s)
 Instruction
 ============
 
-Copy two script files (churn.ccn.analyzer.pl and und.file.complexity.pl) at the parent directory of target git repositories.
+1. For analyzing single git
 
-Usage(s)
-========
+Get modified files from specific date range and Acquire complexity of each file by using Scitools' Understand.
+Then export csv files 'file_churn_complexity.csv' which sorted by churn (commits) and file complexity descending order.
+
+  Usage
+  =====
 
    $ churn.ccn.analyzer.pl [git path] [language] [since]
 
       - git path    directory path of target git repository
 
-      - language    supported langauge: c++, java, web
+      - language    supported langauges: c++, java, web
 
                     * c++ : C/C++ language
                     * java: Java language
@@ -45,32 +49,79 @@ Usage(s)
 
       - since       (optional) you can designate specific starting date, not whole history
 
-Examples
-========
+  Examples
+  ========
 
    $ churn.ccn.analyzer.pl junit "java" 
    $ churn.ccn.analyzer.pl git "c++" "one month ago"
    $ churn.ccn.analyzer.pl junit "java" "2013-12-01"
 
-Output
-======
+  Output
+  ======
 
-Result will be stored at git path under 'churn-complexity-output' directory.
+  Result will be stored at git path under 'churn-complexity-output' directory.
 
-   * file_churn_complexity.csv
-      - filename
-      - commits (churn)
-      - file complexity
-      - number of function
-      - function name which has max cyclomatic complexity in the file
-      - max cyclomatic complexity
-   * file_churn_complexity_functions.csv
-      - filename (line position)
-      - function name
-      - cyclomatic complexity ('Cyclomatic' metric)
-      - sloc ('CountLineCode' metric)
+      * file_churn_complexity.csv
+        - filename
+        - commits (churn)
+        - file complexity
+        - number of function
+        - function name which has max cyclomatic complexity in the file
+        - max cyclomatic complexity
+     * file_churn_complexity_functions.csv
+        - filename (line position)
+        - function name
+        - cyclomatic complexity ('Cyclomatic' metric)
+        - sloc ('CountLineCode' metric)
+
+2. For large project which has multiple sub git repositories
+
+Scan all git repositories of project and Run 'churn.ccn.analyzer.pl' script onto each git repository.
+Gather all 'file_churn_complexity.csv' and sorted by churn (commits) and file complexity descending order.
+Export top risky items to be reviewed or refactored to 'top_risk_files.csv'.
+
+  Usage
+  =====
+
+   $ run.batch.at [top path of project] [criteria] [limit]
+
+      - top path    directory path of target project
+
+      - criteria    (optional) supported options: file, max
+
+                    * file: sorted by file complexity
+                    * max : sorted by max function complexity
+
+                    default criteria is 'file'
+
+      - limit       (optional) how many items filtered out (default 20)
+
+  Examples
+  ========
+
+   $ run.batch.at ~/he/wall/ file 10
+   $ run.batch.at ~/mc/lgapps/ max
+
+  Output
+  ======
+
+     * top_20_risk_files(file).csv
+        - repo_name
+        - filename
+        - commits (churn)
+        - file complexity
+        - avg complexity
+     * top_20_risk_files(max).csv
+        - repo_name
+        - filename
+        - function name
+        - commits (churn)
+        - function complexity
+        - file complexity
+        - avg complexity
+
+---
 
 cf) File complexity is calculated as followed:
 
    (Sum of complexity of all function in the file) - (number of function in the file) + 1
-
