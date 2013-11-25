@@ -18,7 +18,7 @@ Component(s)
 
    * run.batch.at            // batch file for large project
    * listing.all.repos.from  // listing all git repos at the specificed position
-   * scan.at.pl              // same script 'listing.all.repos.from' (perl version)
+   * scan.all.repos.at.pl    // same script 'listing.all.repos.from' (perl version)
    * gathering.all.repos.from// execute churn.ccn.analyzer.pl for each git
 
    * churn.ccn.analyzer.pl   // main script (calls und.file.complexity.pl)
