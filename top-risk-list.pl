@@ -17,9 +17,6 @@ my $dirnames     = dirname(rel2abs($target_dir, $working_dir));
 my $target_name  = basename($target_dir);
 my $result_dir   = "$output_dir$dirnames/$target_name";
 
-# Define global scope for referencing from each Comparator
-my %risky_items = ();
-
 sub get_git_repo_list {
 	my $git_repo_list_filepath = catfile($working_dir, "git-repo-list");
 
