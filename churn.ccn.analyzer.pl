@@ -63,13 +63,11 @@ sub check_prerequisite($) {
 		return "";
 	} 
 
-	chdir $target_dir
-    or die "Failed to enter the specified directory '$target_dir': $!\n";
-	if (! -d ".git") {
+	my $_git_folder = catfile($target_dir, ".git");
+	if (! -d $_git_folder) {
 		print "'$target_dir' is not a git repository!\n";
 		return "";
 	}
-	chdir $working_dir;
 	return 1;
 }
 
@@ -176,13 +174,13 @@ sub get_file_churn($\@;$) {
 }
 
 sub export_file_churn_to_csv {
-	my ($target_dir, %file_stats) = @_;
+	my ($target_dir, $file_stats) = @_;
 
 	my $file_churn_file_path = catfile($result_dir, "file_churn.csv");
 
 	open(FILE_COUNT, ">", catfile($result_dir, "file-count"))
 		or die "Couldn't open 'file-count': $!\n";
-	print FILE_COUNT scalar keys %file_stats;
+	print FILE_COUNT scalar keys %{$file_stats};
 	close FILE_COUNT;
 
 	open(FILE_CHURN, '>:encoding(UTF-8)', $file_churn_file_path)
@@ -190,13 +188,13 @@ sub export_file_churn_to_csv {
 
 	print FILE_CHURN "filename, commits\n";
 	# sort 1) commits desc 2) filename asc with lowercase
-	foreach (sort {($file_stats{$b}{commits} <=> $file_stats{$a}{commits}) or
-		           (lc $a cmp lc $b)} keys %file_stats ) {
-#		print "$_ : $file_stats{$_}{commits}\n";
-		print FILE_CHURN "$_, $file_stats{$_}{commits}\n";
+	foreach (sort {($file_stats->{$b}{commits} <=> $file_stats->{$a}{commits}) or
+		           (lc $a cmp lc $b)} keys %{$file_stats} ) {
+#		print "$_ : $file_stats->{$_}{commits}\n";
+		print FILE_CHURN "$_, $file_stats->{$_}{commits}\n";
 	}
 	close FILE_CHURN;
-	#print Dumper \%file_stats;
+	#print Dumper \%{$file_stats};
 }
 
 sub to_languages_array($) {
@@ -236,24 +234,30 @@ sub build_churn_complexity {
 #TODO: Usage 출력 및 파라미터 파싱 필요
 my @languages = to_languages_array(lc $ARGV[1]);
 
+my $HIGHLIGHT="\e[01;34m";
+my $NORMAL="\e[00m";
 
-print "1/5) Check prerequisites ('und' in PATH and target is git repo.) ";
+print $HIGHLIGHT,"================================================================================", "$NORMAL\n";
+print $HIGHLIGHT," Generate churn (commit frequency) vs complexity ", "$NORMAL\n";
+print "   > from '$target_dir'\n";
+print $HIGHLIGHT,"================================================================================", "$NORMAL\n";
+print $HIGHLIGHT,"1/5) Check prerequisites ('und' in PATH and target is git repo.)$NORMAL ";
 print "...Error!!\n" and exit unless check_prerequisite($target_dir);
 print "... Done\n";
-print "2/5) Retrieve last recently modified files ";
+print $HIGHLIGHT,"2/5) Retrieve last recently modified files$NORMAL ";
 my %file_stats = get_file_churn($target_dir, @languages, $ARGV[2]);
 print "... Done (total ", scalar keys %file_stats, " files)\n";
 my $file_churn_file_path = catfile(basename($target_dir), "file_churn.csv");
-print "3/5) Export file churn to csv ($file_churn_file_path) ";
-export_file_churn_to_csv($target_dir, %file_stats);
+print $HIGHLIGHT,"3/5) Export file churn to csv ($file_churn_file_path)$NORMAL ";
+export_file_churn_to_csv($target_dir, \%file_stats);
 #print Dumper \%file_stats;
 print "... Done\n";
-print "4/5) Parse source files by using Understand \n";
+print $HIGHLIGHT,"4/5) Parse source files by using Understand$NORMAL \n";
 build_und_database($target_dir, $ARGV[1]);
 #print keys %file_stats;
 
-print "5/5) Report result \n";
+print $HIGHLIGHT,"5/5) Report result$NORMAL \n";
 build_churn_complexity($target_dir);
 #print Dumper \%file_stats;
 print "... Done\n";
-print "See result at '$result_dir' directory\n";
+print "See result at $HIGHLIGHT'$result_dir'$NORMAL directory\n";

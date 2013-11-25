@@ -2,9 +2,6 @@
 # Update all git directories below current directory or specified directory
 # Skips directories that contain a file called .ignore
 
-HIGHLIGHT="\e[01;34m"
-NORMAL='\e[00m'
-
 STARTING_DIR=`pwd 2>&1`
 GIT_REPO_LIST_FILE="${STARTING_DIR}/git-repo-list"
 let COUNT=0
@@ -18,11 +15,9 @@ function update {
       cd $d > /dev/null
       if [ -d ".git" ]; then
         echo -e "${HIGHLIGHT}>> `pwd`$NORMAL"
-        git pull 2>/dev/null
+        `git pull 2>/dev/null`
         pwd >> "$GIT_REPO_LIST_FILE"
         ((COUNT++))
-        #`$STARTING_DIR/churn.ccn.analyzer.pl ${PWD} "c++ java web" "one month ago"`
-        #echo -e "$STARTING_DIR/churn.ccn.analyzer.pl ${PWD} 'c++ java web' 'one month ago'"
       else
         scan *
       fi
@@ -39,8 +34,11 @@ function scan {
   done
 }
 
+HIGHLIGHT="\e[01;34m"
+NORMAL='\e[00m'
+
 [[ -f "$GIT_REPO_LIST_FILE" ]] && rm -f "$GIT_REPO_LIST_FILE"
 if [ "$1" != "" ]; then cd $1 > /dev/null; fi
 echo -e "${HIGHLIGHT}Scanning ${PWD}${NORMAL}"
 scan * 
-echo -e "${HIGHLIGHT}Scanning completed (total : ${COUNT} repos)"
+echo -e "${HIGHLIGHT}Scanning completed (total : ${COUNT} repos)${NORMAL}"
