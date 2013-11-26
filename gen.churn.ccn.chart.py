@@ -1,14 +1,6 @@
 #!/usr/bin/python
 # * coding:utf-8 *
 
-# 알아야 할 것들
-# 1. 파라미터로 대상 파일경로 넘겨주기
-# 2. 함수 어떻게 만드나
-# 3. 함수에 dictoionary 넘겨주기
-# 4. 파일(csv)에서 읽어오기 => dictionary 에 넣기 (file complexity, max complexity, avg complexity)
-# 5. dictionary 정렬하기 (commits, complexity)
-# 6. 만들어진 dictionary 차트로 만들기
-
 # pandas 를 이용하여 csv 파일 읽어들이기
 import pandas as pd
 
@@ -68,7 +60,6 @@ def get_churn_complexity(df, type, common_prefix):
 # pygal 을 사용하여 차트 생성 - http://pygal.org/
 import pygal  # First import pygal
 from pygal import Config
-#from pygal.style import NeonStyle
 
 class XYConfig(Config):
 	stroke=False
@@ -76,8 +67,6 @@ class XYConfig(Config):
 	legend_font_size=10
 	legend_at_bottom=True
 	title_font_size=20
-	#style=NeonStyle
-	#human_readable = True
 	fill = True
 	x_scale = 5
 	y_scale = 10
@@ -99,7 +88,6 @@ def build_chart(repo_churn_complexity, name, total, data_type, output_filename):
 	else:
 		chart.render_to_file(output_filename) 
 
-# -csvfile=...path.csv -outfile=
 import getopt, sys, os
 
 verbose = False
@@ -148,7 +136,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main() # [1:] slices off the first argument which is the name of the program
+    main()
 
 print "================================================================================"
 print "  Generating churn-complexity chart\n"
