@@ -137,9 +137,9 @@ sub get_file_churn($\@;$) {
 	$since_str = '--since=\'' .$since .'\'' if defined $since;
 
 	my $COMMIT_FREQUENCY_COMMAND = 
-	'git rev-list ' .$since_str .' --no-merges --objects --ignore-missing --all | 
-	grep -E \'*\.(' .get_language_pattern_str($languages) .')$\' | 
-	awk \'"" != $2\' | sort -k2 | uniq -cf1 | sort -rn |
+	'git rev-list ' .$since_str .' --no-merges --objects --ignore-missing --all | '
+	.'grep -E \'*\.(' .get_language_pattern_str($languages) .')$\' | '
+	.'awk \'"" != $2\' | sort -k2 | uniq -cf1 | sort -rn |
 	while read frequency sha1 path 
 	do 
 		[ "blob" = "$(git cat-file -t $sha1)" ] && echo -e "$frequency\t$path"; 
@@ -224,7 +224,7 @@ sub build_churn_complexity {
 	my ($target_dir) = shift(@_);
 
 	my $target_und_db_file = catfile($result_dir, "$target_name.udb");
-	system("und uperl und.file.complexity.pl $target_dir -db $target_und_db_file -v");
+	system("und uperl und.file.complexity.pl -db $target_und_db_file $ARGV[2] -v");
 }
 
 # print "0) $ARGV[0]\n";
