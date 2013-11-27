@@ -45,7 +45,7 @@ def get_churn_complexity(df, type, input_filename):
 				{'value': eval(value), 'label': label})
 		else:
 			value = "({0},{1})".format(row['commits'], row['function complexity'])
-			label = "{0}/{1}/{2}".format(repo, row['filename'], row['function name'])
+			label = "{0}/{1}::{2}".format(repo, row['filename'], row['function name'])
 			churn_complexity.append(
 				{'value': eval(value), 'label': label})
 	return churn_complexity
