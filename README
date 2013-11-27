@@ -17,9 +17,9 @@ Component(s)
 ============
 
    * run.batch.at.sh              // batch file for large project
-   * listing.all.repos.from.sh    // listing all git repos 
+   * list.all.repos.from.sh       // listing all git repos 
    * scan.all.repos.at.pl         // perl version (listing.all.repos.from.sh) 
-   * gathering.all.repos.from.sh  // execute churn.ccn.analyzer.pl for each git
+   * gather.all.repos.from.sh     // execute churn.ccn.analyzer.pl for each git
 
    * churn.ccn.analyzer.pl   // main script (calls und.file.complexity.pl)
    * und.file.complexity.pl  // by using understand CLI, to get loc and complelxity
