@@ -5,20 +5,22 @@ use strict;
 use warnings;
 use File::Basename;
 use File::Spec::Functions qw( catfile abs2rel rel2abs curdir );
+use Cwd qw(abs_path cwd );
 
 # print "0) $ARGV[0]\n";
 # print "1) $ARGV[1]\n";
 # print "2) $ARGV[2]\n";
 # print "3) " . Understand::CommandLine::db() ."\n";
 # print "4) $ARGV[3]\n";
+our $since = "one month ago";
+$since = $ARGV[2] if (defined ($ARGV[2]));
 our $verbose_flag = 0;
 $verbose_flag = "-v" eq lc $ARGV[3] if (defined ($ARGV[3]));
 
 my $db = Understand::CommandLine::db();
 
 our $base_dir   = dirname($db->name());
-our $target_dir = rel2abs($ARGV[2]);
-
+our $target_dir = "/" .abs2rel($base_dir, cwd() ."/churn-complexity-output");
 my  $dblanguage = $db->language();
 
 if ($dblanguage !~ /c|java|web/i) {
@@ -114,6 +116,44 @@ sub read_file_churn_csv {
 	}
 	close FILE_CHURN;
 	return %file_stats;
+}
+
+sub get_function_churn {
+	my ($target_dir, $since, $file_stats) = @_;
+
+	my $working_dir = cwd();
+	my $since_str = "";
+	$since_str = '--since=\'' .$since .'\'' if defined $since;
+
+	chdir $target_dir;
+	print "pwd : $working_dir\n";
+
+ 	foreach my $filepath (keys %{$file_stats}) {
+		my $FUNCTION_FREQUENCY_OF_FILE_COMMAND = 
+		'git log -p ' .$since_str .' -- ' .$filepath .' | grep -E \'^(@@)\' | '
+		.'sed \'s/@@.*@@\s*//\' | grep -E \'[^\s*:]$\' | '
+		.'sort | uniq -c | sort -rn';
+
+		if ( ! open(FUNCTION_CHURN,'-|', $FUNCTION_FREQUENCY_OF_FILE_COMMAND) ) {
+		    die "Failed to process 'git log -p': $!\n";
+		}
+
+		while(my $churn_line = <FUNCTION_CHURN>) {
+			chomp $churn_line;
+			if ($churn_line =~ m{(\d+)\s+(.+)} ) {
+				my $frequency     = $1;
+				my $function_name = $2;
+
+				$file_stats->{$filepath}{functions}{$function_name}{commits} = $frequency;
+				print $filepath,"::$function_name ($frequency)\n";
+			}
+		}
+ 	}
+
+	close FUNCTION_CHURN;
+	chdir $working_dir;
+
+	return %{$file_stats};
 }
 
 sub to_unix_path {

@@ -138,9 +138,9 @@ sub get_file_churn($\@;$) {
 	$since_str = '--since=\'' .$since .'\'' if defined $since;
 
 	my $COMMIT_FREQUENCY_COMMAND = 
-	'git rev-list ' .$since_str .' --no-merges --objects --ignore-missing --all | 
-	grep -E \'*\.(' .get_language_pattern_str($languages) .')$\' | 
-	awk \'"" != $2\' | sort -k2 | uniq -cf1 | sort -rn |
+	'git rev-list ' .$since_str .' --no-merges --objects --ignore-missing --all | '
+	.'grep -E \'*\.(' .get_language_pattern_str($languages) .')$\' | '
+	.'awk \'"" != $2\' | sort -k2 | uniq -cf1 | sort -rn |
 	while read frequency sha1 path 
 	do 
 		[ "blob" = "$(git cat-file -t $sha1)" ] && echo -e "$frequency\t$path"; 
