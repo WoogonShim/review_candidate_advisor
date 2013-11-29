@@ -28,24 +28,92 @@ if ($dblanguage !~ /c|java|web/i) {
     die "$dblanguage is currently unsupported";
 }
 
+sub read_adjusted_file_churn {
+	my ($filepath) = @_;
+
+	my $since_str = "";
+	$since_str = '--since=\'' .$since .'\'' if defined $since;
+	
+	# It's needed to adjust commit count
+	my $AUTHOR_COMMITTER_COMMITS_CMD = "git whatchanged $since_str --no-merges "
+	."--all --format='\%ae \%ce' -s -- $filepath "
+	."| sort | uniq -c | sort -rn | "
+	."awk '{print \$2 \" -> \" \$3 \" (\" \$1 \")\"}'";
+
+#	print $AUTHOR_COMMITTER_COMMITS_CMD, "\n";
+	if ( ! open(FILE_CHURN_ADJUST,'-|', $AUTHOR_COMMITTER_COMMITS_CMD) ) {
+    	die "Failed to process 'git whatchanged': $!\n";
+	}
+
+	my %authors;
+	my %committers;
+	my $total_commits = 0;
+
+	while (my $commit_count_line = <FILE_CHURN_ADJUST>) {
+#		print $commit_count_line;
+		chomp $commit_count_line;
+		if ($commit_count_line =~ m{(.+) -> (.+) \((\d+)\)} ) {
+			my $author    = $1;
+			my $committer = $2;
+			my $count     = $3;
+
+			$authors{$author}       = 0 if (!defined( $authors{$author} ));
+			$committers{$committer} = 0 if (!defined( $committers{$committer} ));
+
+			$authors{$author}       += $count;
+			$committers{$committer} += $count;
+			$total_commits          += $count;
+		}
+	}
+	close FILE_CHURN_ADJUST;
+
+	return ($total_commits, \%authors, \%committers);
+}
+
+sub members_to_str {
+	my ($members) = @_;
+
+	my $result = '';
+
+	my $total = scalar keys %{$members};
+	my $i     = 1;
+
+	foreach (sort { ($members->{$b} <=> $members->{$a}) or 
+					(lc $a cmp lc $b) } keys %{$members} ) {
+		$result .= "$_ ($members->{$_})";
+		$result .= "|" if ($i++ < $total);
+	}
+	return $result;
+}
+
 sub read_file_churn_csv {
 	my $file_churn_file_path = catfile($base_dir, "file_churn.csv");
 
 	open(FILE_CHURN, '<:encoding(UTF-8)', $file_churn_file_path)
 		or die "Couldn't open 'file_churn.csv': $!\n";
 
+	my $working_dir = cwd();
+	chdir $target_dir;
+
 	my %file_stats;
 	while(my $churn_line = <FILE_CHURN>) {
 		chomp $churn_line;
-		if ($churn_line =~ m{^(.+),\s+(\d+)} ) {
+		if ($churn_line =~ m{^(.+),(\d+)} ) {
 			my $filepath = $1;
 			my $frequency= $2;
 
-			$file_stats{$filepath}{commits} = $frequency;
-#			print $churn_line,"\n";
+			my ($commit_count, $authors, $committers) = read_adjusted_file_churn($filepath);
+#			print "Adjusted : $filepath ($frequency -> $commit_count)\n" if $commit_count != $frequency;
+			next if $commit_count <= 0;
+
+			$file_stats{$filepath}{commits} = $commit_count;
+			$file_stats{$filepath}{authors} = members_to_str($authors);
+			$file_stats{$filepath}{committers} = members_to_str($committers);
+#			print Dumper $file_stats{$filepath};
 		}
 	}
 	close FILE_CHURN;
+	chdir $working_dir;
 	return %file_stats;
 }
 
@@ -57,7 +125,6 @@ sub get_function_churn {
 	$since_str = '--since=\'' .$since .'\'' if defined $since;
 
 	chdir $target_dir;
-	print "pwd : $working_dir\n";
 
  	foreach my $filepath (keys %{$file_stats}) {
 		my $FUNCTION_FREQUENCY_OF_FILE_COMMAND = 
@@ -130,6 +197,10 @@ sub build_churn_complexity {
 			$stats{$filepath}{max_complexity} = 0 if (!defined( $stats{$filepath}{max_complexity}));
 	 		$stats{$filepath}{commits} =
 	 			$file_churn_stats->{$filepath}{commits} if (!defined( $stats{$filepath}{commits}));
+	 		$stats{$filepath}{authors} =
+	 			$file_churn_stats->{$filepath}{authors} if (!defined( $stats{$filepath}{authors}));
+	 		$stats{$filepath}{committers} =
+	 			$file_churn_stats->{$filepath}{committers} if (!defined( $stats{$filepath}{committers}));
 
 			$stats{$filepath}{sum_complexity} = $complexity + $stats{$filepath}{sum_complexity};
 			$stats{$filepath}{funct_count} = $stats{$filepath}{funct_count} + 1;
@@ -198,16 +269,19 @@ sub export_csv_sorted_by_file_complexity {
 	open(FILE_CHURN_COMPLEXITY, '>:encoding(UTF-8)', $file_churn_ccn_file_path)
 		or die "Couldn't open 'file_churn_complexity.csv': $1\n";
 
-	print FILE_CHURN_COMPLEXITY "filename, commits, file complexity, # of function, avg complexity, max function name, max complexity\n";
+	print FILE_CHURN_COMPLEXITY "filename,commits,file complexity,# of function,avg complexity,max function name,max complexity,authors,committers\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
 	foreach (sort { by_file_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
-		print FILE_CHURN_COMPLEXITY "$_, "
-		      ,"$file_churn_complexity_stats->{$_}{'commits'}, "
-		      ,"$file_churn_complexity_stats->{$_}{'file_complexity'}, "
-		      ,"$file_churn_complexity_stats->{$_}{'funct_count'}, "
-		      ,"$file_churn_complexity_stats->{$_}{'avg_complexity'}, "
-		      ,"$file_churn_complexity_stats->{$_}{'max_complexity_funct_name'}, "
-		      ,"$file_churn_complexity_stats->{$_}{'max_complexity'} \n";
+		print FILE_CHURN_COMPLEXITY "$_,"
+		      ,"$file_churn_complexity_stats->{$_}{'commits'},"
+		      ,"$file_churn_complexity_stats->{$_}{'file_complexity'},"
+		      ,"$file_churn_complexity_stats->{$_}{'funct_count'},"
+		      ,"$file_churn_complexity_stats->{$_}{'avg_complexity'},"
+		      ,"$file_churn_complexity_stats->{$_}{'max_complexity_funct_name'},"
+		      ,"$file_churn_complexity_stats->{$_}{'max_complexity'},"
+		      ,"$file_churn_complexity_stats->{$_}{'authors'},"
+		      ,"$file_churn_complexity_stats->{$_}{'committers'}"
+		      ,"\n";
 	}
 
 	close FILE_CHURN_COMPLEXITY;
@@ -222,16 +296,18 @@ sub export_csv_sorted_by_max_function_complexity {
 	open(FILE_CHURN_COMPLEXITY_MAX, '>:encoding(UTF-8)', $file_churn_ccn_max_file_path)
 		or die "Couldn't open 'file_churn_complexity_max.csv': $1\n";
 
-	print FILE_CHURN_COMPLEXITY_MAX "filename, max function name, commits, max complexity, file complexity, # of function, avg complexity\n";
+	print FILE_CHURN_COMPLEXITY_MAX "filename,max function name,commits,max complexity,file complexity,# of function,avg complexity,authors,committers\n";
 	# sort 1) commits desc 2) max complexity desc, 3) filename asc with lowercase
 	foreach (sort { by_max_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
-		print FILE_CHURN_COMPLEXITY_MAX "$_, "
-		      ."$file_churn_complexity_stats->{$_}{'max_complexity_funct_name'}, "
-		      ."$file_churn_complexity_stats->{$_}{'commits'}, "
-		      ."$file_churn_complexity_stats->{$_}{'max_complexity'}, "
-		      ."$file_churn_complexity_stats->{$_}{'file_complexity'}, "
-		      ."$file_churn_complexity_stats->{$_}{'funct_count'}, "
-		      ."$file_churn_complexity_stats->{$_}{'avg_complexity'}"
+		print FILE_CHURN_COMPLEXITY_MAX "$_,"
+		      ."$file_churn_complexity_stats->{$_}{'max_complexity_funct_name'},"
+		      ."$file_churn_complexity_stats->{$_}{'commits'},"
+		      ."$file_churn_complexity_stats->{$_}{'max_complexity'},"
+		      ."$file_churn_complexity_stats->{$_}{'file_complexity'},"
+		      ."$file_churn_complexity_stats->{$_}{'funct_count'},"
+		      ."$file_churn_complexity_stats->{$_}{'avg_complexity'},"
+		      ,"$file_churn_complexity_stats->{$_}{'authors'},"
+		      ,"$file_churn_complexity_stats->{$_}{'committers'}"
 		      ."\n";
 	}
 
@@ -247,7 +323,7 @@ sub export_file_churn_complexity_functions_to_csv {
 	open(EXPORT_CSV, '>:encoding(UTF-8)', $export_filepath)
 		or die "Couldn't open 'file_churn_complexity_functions.csv': $1\n";
 
-	print EXPORT_CSV "filename (line), function, complexity, sloc\n";
+	print EXPORT_CSV "filename (line),function,complexity,sloc\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
 	foreach (sort { by_file_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
 		my $filename = $_;
@@ -256,7 +332,7 @@ sub export_file_churn_complexity_functions_to_csv {
 		foreach (sort {($functions{$b}{complexity} <=> $functions{$a}{complexity}) or
 		               (lc $a cmp lc $b)} keys %functions ) {
 #			print "$filename ($functions{$_}{line_at}), $_, $functions{$_}{complexity}, $functions{$_}{sloc}\n";
-        	print EXPORT_CSV "$filename ($functions{$_}{line_at}), $_, $functions{$_}{complexity}, $functions{$_}{sloc}\n";
+        	print EXPORT_CSV "$filename ($functions{$_}{line_at}),$_,$functions{$_}{complexity},$functions{$_}{sloc}\n";
         }
     }
 

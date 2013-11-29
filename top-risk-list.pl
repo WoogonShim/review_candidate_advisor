@@ -58,8 +58,8 @@ sub min_ ($$) {
 sub readline_max_complexity {
 	my ($line, $repo_path, $risky_items) = @_;
 
-	# filename, max function name, commits, max complexity, file complexity, # of function, avg complexity
-	if ($line =~ m{^(.+),\s+(.+),\s+(\d+),\s+(\d+),\s+(\d+),\s+(\d+),\s+(\d+\.\d+)} ) {
+	# filename, max function name, commits, max complexity, file complexity, # of function, avg complexity, authors, committers
+	if ($line =~ m{^(.+),(.+),(\d+),(\d+),(\d+),(\d+),(\d+\.\d+),(.+),(.+)} ) {
 		my $filename          = $1;
 		my $max_function_name = $2;
 		my $commits           = $3;
@@ -67,6 +67,8 @@ sub readline_max_complexity {
 		my $file_complexity   = $5;
 		my $nb_of_function    = $6;
 		my $avg_complexity    = $7;
+		my $authors           = $8;
+		my $committers        = $9;
 
 #		my $key = $repo_path ."::" .$filename ."::" .$max_function_name;
 		my $key = $repo_path ."::" .$filename ."::" .$max_function_name ."($commits, $max_complexity)";
@@ -78,6 +80,8 @@ sub readline_max_complexity {
 		$risky_items->{$key}{'max_function_name'} = $max_function_name;
 		$risky_items->{$key}{'max_complexity'}    = int($max_complexity);
 		$risky_items->{$key}{'avg_complexity'}    = $avg_complexity;
+		$risky_items->{$key}{'authors'}           = $authors;
+		$risky_items->{$key}{'committers'}        = $committers;
 #			print $count,") ", $line,"\n";
 	}
 }
@@ -85,8 +89,8 @@ sub readline_max_complexity {
 sub readline_file_complexity {
 	my ($line, $repo_path, $risky_items) = @_;
 
-	# filename, commits, file complexity, # of function, avg complexity, max function name, max complexity
-	if ($line =~ m{^(.+),\s+(\d+),\s+(\d+),\s+(\d+),\s+(\d+\.\d+),\s+(.+),\s+(\d+)} ) {
+	# filename, commits, file complexity, # of function, avg complexity, max function name, max complexity, authors, committers
+	if ($line =~ m{^(.+),(\d+),(\d+),(\d+),(\d+\.\d+),(.+),(\d+),(.+),(.+)} ) {
 		my $filename          = $1;
 		my $commits           = $2;
 		my $file_complexity   = $3;
@@ -94,6 +98,9 @@ sub readline_file_complexity {
 		my $avg_complexity    = $5;
 		my $max_function_name = $6;
 		my $max_complexity    = $7;
+		my $authors           = $8;
+		my $committers        = $9;
+#		print "$repo_path - $filename - $authors\n";
 
 #		my $key = $repo_path ."::" .$filename;
 		my $key = $repo_path ."::" .$filename ."($commits, $file_complexity)";
@@ -105,7 +112,10 @@ sub readline_file_complexity {
 		$risky_items->{$key}{'max_function_name'} = $max_function_name;
 		$risky_items->{$key}{'max_complexity'}    = int($max_complexity);
 		$risky_items->{$key}{'avg_complexity'}    = $avg_complexity;
+		$risky_items->{$key}{'authors'}           = $authors;
+		$risky_items->{$key}{'committers'}        = $committers;
 #			print $count,") ", $line,"\n";
+#		print Dumper $risky_items->{$key};
 	}
 }
 
@@ -205,16 +215,16 @@ sub by_file_complexity {
 sub build_csv_header {
 	my ($criteria) = @_;
 
-	my $header = "repo_name, filename";
+	my $header = "repo_name,filename";
 	if ($criteria eq "max") {
-		$header .= ", function name";
+		$header .= ",function name";
 	}
 
-	$header .= ", commits";
+	$header .= ",commits";
 	if ($criteria eq "max") {
-		$header .= ", function complexity";
+		$header .= ",function complexity";
 	}
-	$header .= ", file complexity, avg complexity\n"; 
+	$header .= ",file complexity,avg complexity,authors,committers\n"; 
 
 	return $header;
 }
@@ -223,18 +233,20 @@ sub build_csv_data {
 	my ($key, $criteria, $risky_items) = @_;
 
 	my $data = "$risky_items->{$key}{'repo_path'}"
-	      . ", $risky_items->{$key}{'filename'}";
+	      . ",$risky_items->{$key}{'filename'}";
 
 	if ($criteria eq "max") {
-		$data .= ", $risky_items->{$key}{'max_function_name'}"; 
+		$data .= ",$risky_items->{$key}{'max_function_name'}"; 
 	}
 
-	$data .= ", $risky_items->{$key}{'commits'}";
+	$data .= ",$risky_items->{$key}{'commits'}";
 	if ($criteria eq "max") {
-		$data .= ", $risky_items->{$key}{'max_complexity'}"; 
+		$data .= ",$risky_items->{$key}{'max_complexity'}"; 
 	}
-	$data .= ", $risky_items->{$key}{'file_complexity'}"
-		  . ", $risky_items->{$key}{'avg_complexity'}\n"; 
+	$data .= ",$risky_items->{$key}{'file_complexity'}"
+		  . ",$risky_items->{$key}{'avg_complexity'}"
+		  . ",$risky_items->{$key}{'authors'}"
+		  . ",$risky_items->{$key}{'committers'}\n"; 
 	return $data;
 }
 
@@ -266,6 +278,14 @@ sub export_top_risk_to_csv {
 	return $i;
 }
 
+sub gen_chart_by_using_pygal {
+	my ($top_risk_filepath) = @_;
+	my $chart_filename = basename($top_risk_filepath, ".csv") .".svg";
+#	print ("./gen.churn.ccn.chart.py -i $top_risk_filepath -o $chart_filename 2>/dev/null\n");
+	system("./gen.churn.ccn.chart.py", "-i", "$top_risk_filepath", "-o", "$chart_filename", "2>/dev/null");
+	system("./gen.churn.ccn.chart.py", "-i", "$top_risk_filepath", "-o", "$chart_filename", "max 2>/dev/null");
+}
+
 # ====================================================================
 
 my $criteria = "file";
@@ -287,13 +307,16 @@ my $NORMAL="\e[00m";
 print $HIGHLIGHT,"================================================================================", "$NORMAL\n";
 print $HIGHLIGHT," Screening top $result_limit risk list ($criteria)", "$NORMAL\n";
 print $HIGHLIGHT,"================================================================================", "$NORMAL\n";
-print $HIGHLIGHT,"1/3) Retrieving all git repository list", "$NORMAL\n";
+print $HIGHLIGHT,"1/4) Retrieving all git repository list", "$NORMAL\n";
 my @git_repo_list = get_git_repo_list();
 print "   => total ", $HIGHLIGHT, scalar @git_repo_list, "$NORMAL repos identified.\n";
-print $HIGHLIGHT,"2/3) Screening top risk items from all git repositories", "$NORMAL\n";
+print $HIGHLIGHT,"2/4) Screening top risk items from all git repositories", "$NORMAL\n";
 my %risky_items = top_items_of_all_repo($criteria, $git_limit, @git_repo_list);
 print "   => total ", $HIGHLIGHT, scalar keys %risky_items, "$NORMAL items acquired.\n";
-print $HIGHLIGHT,"3/3) Exporting top $result_limit risk items", "$NORMAL\n";
+print $HIGHLIGHT,"3/4) Exporting top $result_limit risk items", "$NORMAL\n";
 export_top_risk_to_csv($criteria, $result_limit, $top_risk_filepath, \%risky_items);
 print "   See result at ", $HIGHLIGHT, "'$top_risk_filepath'$NORMAL file.\n";
+print $HIGHLIGHT,"Done...", "$NORMAL\n";
+print $HIGHLIGHT,"1/4) Generating chart by Python Pygal", "$NORMAL\n";
+gen_chart_by_using_pygal($top_risk_filepath);
 print $HIGHLIGHT,"Done...", "$NORMAL\n";
