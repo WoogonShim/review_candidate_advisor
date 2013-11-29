@@ -68,6 +68,8 @@ class XYConfig(Config):
 def build_chart(churn_complexity, name, data_type, output_filename):
 	chart = pygal.XY(XYConfig())
 	chart.title = '"{0}" churn vs complexity ({1}) - total {2} items'.format(name, data_type, len(churn_complexity))
+	if len(churn_complexity) == 1:
+		churn_complexity.append({'value': (0,0), 'label': 'origin'})
 	chart.add('values', churn_complexity)  # Add some values
 	fileName, fileExtension = os.path.splitext(output_filename)
 	if fileExtension.lower() == "png":
