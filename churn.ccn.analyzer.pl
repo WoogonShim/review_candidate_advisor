@@ -185,12 +185,12 @@ sub export_file_churn_to_csv {
 	open(FILE_CHURN, '>:encoding(UTF-8)', $file_churn_file_path)
 		or die "Couldn't open 'file_churn.csv': $!\n";
 
-	print FILE_CHURN "filename, commits\n";
+	print FILE_CHURN "filename,commits\n";
 	# sort 1) commits desc 2) filename asc with lowercase
 	foreach (sort {($file_stats->{$b}{commits} <=> $file_stats->{$a}{commits}) or
 		           (lc $a cmp lc $b)} keys %{$file_stats} ) {
 #		print "$_ : $file_stats->{$_}{commits}\n";
-		print FILE_CHURN "$_, $file_stats->{$_}{commits}\n";
+		print FILE_CHURN "$_,$file_stats->{$_}{commits}\n";
 	}
 	close FILE_CHURN;
 	#print Dumper \%{$file_stats};
