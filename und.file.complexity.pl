@@ -96,10 +96,13 @@ sub read_file_churn_csv {
 	open(FILE_CHURN, '<:encoding(UTF-8)', $file_churn_file_path)
 		or die "Couldn't open 'file_churn.csv': $!\n";
 
+	my $working_dir = cwd();
+	chdir $target_dir;
+
 	my %file_stats;
 	while(my $churn_line = <FILE_CHURN>) {
 		chomp $churn_line;
-		if ($churn_line =~ m{^(.+),\s+(\d+)} ) {
+		if ($churn_line =~ m{^(.+),(\d+)} ) {
 			my $filepath = $1;
 			my $frequency= $2;
 
@@ -115,6 +118,7 @@ sub read_file_churn_csv {
 		}
 	}
 	close FILE_CHURN;
+	chdir $working_dir;
 	return %file_stats;
 }
 
@@ -126,7 +130,6 @@ sub get_function_churn {
 	$since_str = '--since=\'' .$since .'\'' if defined $since;
 
 	chdir $target_dir;
-	print "pwd : $working_dir\n";
 
  	foreach my $filepath (keys %{$file_stats}) {
 		my $FUNCTION_FREQUENCY_OF_FILE_COMMAND = 
@@ -329,7 +332,7 @@ sub export_file_churn_complexity_functions_to_csv {
 	open(EXPORT_CSV, '>:encoding(UTF-8)', $export_filepath)
 		or die "Couldn't open 'file_churn_complexity_functions.csv': $1\n";
 
-	print EXPORT_CSV "filename (line), function, complexity, sloc\n";
+	print EXPORT_CSV "filename (line),function,complexity,sloc\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
 	foreach (sort { by_file_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
 		my $filename = $_;
@@ -338,7 +341,7 @@ sub export_file_churn_complexity_functions_to_csv {
 		foreach (sort {($functions{$b}{complexity} <=> $functions{$a}{complexity}) or
 		               (lc $a cmp lc $b)} keys %functions ) {
 #			print "$filename ($functions{$_}{line_at}), $_, $functions{$_}{complexity}, $functions{$_}{sloc}\n";
-        	print EXPORT_CSV "$filename ($functions{$_}{line_at}), $_, $functions{$_}{complexity}, $functions{$_}{sloc}\n";
+        	print EXPORT_CSV "$filename ($functions{$_}{line_at}),$_,$functions{$_}{complexity},$functions{$_}{sloc}\n";
         }
     }
 
