@@ -48,8 +48,8 @@ class XYConfig(Config):
 	show_legend=False
 	title_font_size=20
 	fill = True
-	x_scale = 5
-	y_scale = 10
+#	x_scale = 5
+#	y_scale = 10
 	tooltip_font_size = 12
 	x_title = 'churn (# of commits)'
 	y_title = 'complexity'
@@ -58,12 +58,15 @@ def build_chart(churn_complexity, name, data_type, output_filename):
 	chart = pygal.XY(XYConfig()) 
 	total = '{0:,}'.format(len(churn_complexity))
 	chart.title = '"{0}" churn vs complexity ({1}) - total {2} items'.format(name, data_type, total)
+	if len(churn_complexity) == 1:
+		churn_complexity.append({'value': (0,0), 'label': 'origin'})
 	chart.add('values', churn_complexity)  # Add some values
 	fileName, fileExtension = os.path.splitext(output_filename)
 	if fileExtension.lower() == "png":
 		chart.render_to_png(output_filename)
 	else:
 		chart.render_to_file(output_filename) 
+	return
 
 import getopt, sys, os
 
@@ -132,7 +135,17 @@ def get_csv_path_prefix(csv_filepath):
 							"churn-complexity-output")
 	return prefix
 
-def collect_all_csv_files(csv_file_list):
+def generate_all_repos_chart(git_repo_list, csv_file_list):
+	common_prefix = get_common_prefix(git_repo_list)
+	for index, csv_filepath in enumerate(csv_file_list):
+		df        = read_csv_file(csv_filepath)
+		data_type = get_type(df)
+		repo_name = get_last_dirname(git_repo_list[index])
+		churn_complexity = get_churn_complexity(df, data_type, common_prefix)
+		output_filename  = os.path.join(os.path.normpath(os.path.dirname(csv_filepath)), 'churn-complexity-chart.svg')
+		if len(churn_complexity) > 0: build_chart(churn_complexity, repo_name, data_type, output_filename)
+
+def cumulate_df_from_all_csv_files(csv_file_list):
 	cumulative_df = pd.DataFrame()
 	for csv_filepath in csv_file_list:
 		df = read_csv_file(csv_filepath)
@@ -150,31 +163,34 @@ def write_all_files(cumulative_df, result_csv_filename):
 print "================================================================================"
 print "  Generating churn-complexity chart (for project's whole files)"
 print "================================================================================"
-print "1/7) Read input file ('git-repo-list')",
+print "1/8) Read input file ('git-repo-list')",
 csv_file_list, git_repo_list = get_all_csv_files()
 print " ... Done"
 print "  => total {0} repositories".format(len(csv_file_list))
-print "2/7) Get project base directory path",
+print "2/8) Get project base directory path",
 common_prefix = get_common_prefix(git_repo_list)
 print " ... Done"
 print "  => '", common_prefix, "'"
-print "3/7) Reading and collecting all 'file_churn_complexity.csv' files",
-cumulative_df = collect_all_csv_files(csv_file_list)
+print "3/8) Reading and collecting all 'file_churn_complexity.csv' files",
+cumulative_df = cumulate_df_from_all_csv_files(csv_file_list)
 print " ... Done"
-print "4/7) Determining csv file type",
+print "4/8) Determining csv file type",
 data_type = get_type(cumulative_df)
 print " ... Done ('", data_type, "')"
-print "5/7) Retrieving churn-complexity data from all csv files",
+print "5/8) Retrieving churn-complexity data from all csv files",
 churn_complexity = get_churn_complexity(cumulative_df, data_type, common_prefix)
 total_files = '{0:,}'.format(len(churn_complexity))
 print " ... Done"
 print "  => Total {0} files".format(total_files)
-print "6/7) Generating churn-complexity chart",
+print "6/8) Generating churn-complexity chart",
 name = get_last_dirname(common_prefix)
 build_chart(churn_complexity, name, data_type, output_filename)
 print " ... Done"
 print "  => See result at '", output_filename, "'"
-print "7/7) Generating csv file for project's whole files",
+print "7/8) Generating csv file for project's whole files",
 write_all_files(cumulative_df, result_csv_filename)
 print " ... Done"
 print "  => See also '", result_csv_filename, "'"
+print "8/8) Generating churn-complexity chart for each git",
+generate_all_repos_chart(git_repo_list, csv_file_list)
+print " ... Done"
