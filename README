@@ -9,6 +9,10 @@ Prerequisite
 ============
 
    * Perl > 5.x
+   * Python > 2.6
+      * pandas module: http://pandas.pydata.org/pandas-docs/stable/install.html
+      * lxml module  : http://lxml.de/installation.html
+      * pygal module : http://pygal.org/download/
    * Scitools Understand >= 3.1 above (build >= 676)
 
 PATH environment should be include the directory path where 'und' and 'perl' executable exists
