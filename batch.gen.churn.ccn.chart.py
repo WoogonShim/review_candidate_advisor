@@ -210,6 +210,7 @@ print "  => Total {0} files".format(total_files)
 print "6/8) Generating churn-complexity chart",
 title = get_last_dirname(common_prefix)
 generate_project_level_chart(git_repo_list, csv_file_list, title, data_type, output_filename)
+>>>>>>> Update project-level chart
 print " ... Done"
 print "  => See result at '", output_filename, "'"
 print "7/8) Generating csv file for project's whole files",
