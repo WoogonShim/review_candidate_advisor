@@ -135,7 +135,7 @@ def get_csv_path_prefix(csv_filepath):
 							"churn-complexity-output")
 	return prefix
 
-def generate_chart_for_whole(git_repo_list, csv_file_list, title, data_type, output_filename):
+def generate_project_level_chart(git_repo_list, csv_file_list, title, data_type, output_filename):
 	chart = pygal.XY(XYConfig()) 
 	total = 0
 	
@@ -209,7 +209,7 @@ print "  => Total {0} files".format(total_files)
 print "6/8) Generating churn-complexity chart",
 title = get_last_dirname(common_prefix)
 #build_chart(churn_complexity, title, data_type, output_filename)
-generate_chart_for_whole(git_repo_list, csv_file_list, title, data_type, output_filename)
+generate_project_level_chart(git_repo_list, csv_file_list, title, data_type, output_filename)
 print " ... Done"
 print "  => See result at '", output_filename, "'"
 print "7/8) Generating csv file for project's whole files",
