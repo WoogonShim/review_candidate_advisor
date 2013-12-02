@@ -91,8 +91,8 @@ def build_chart(repo_churn_complexity, name, total, data_type, output_filename):
 import getopt, sys, os
 
 verbose = False
-input_filename  = 'top_20_risk_files(max).csv'
-output_filename = 'churn_complexity_chart.svg'
+input_filename  = 'top_20_risk_files(file).csv'
+output_filename = 'top_20_risk_files(file).svg'
 
 def usage():
     usage = """

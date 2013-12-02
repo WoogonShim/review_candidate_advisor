@@ -46,8 +46,6 @@ sub read_adjusted_file_churn {
 	}
 
 	my %authors;
-	my %committers;
-	my %reviews;
 	my $total_commits = 0;
 
 	while (my $commit_count_line = <FILE_CHURN_ADJUST>) {
@@ -55,23 +53,17 @@ sub read_adjusted_file_churn {
 		chomp $commit_count_line;
 		if ($commit_count_line =~ m{(.+) -> (.+) \((\d+)\)} ) {
 			my $author    = $1;
-			my $committer = $2;
 			my $count     = $3;
-			my $review    = $1."->".$2;
 
 			$authors{$author}       = 0 if (!defined( $authors{$author} ));
-			$committers{$committer} = 0 if (!defined( $committers{$committer} ));
-			$reviews{$review}       = 0 if (!defined( $reviews{$review} ));
 
 			$authors{$author}       += $count;
-			$committers{$committer} += $count;
-			$reviews{$review}       += $count;
 			$total_commits          += $count;
 		}
 	}
 	close FILE_CHURN_ADJUST;
 
-	return ($total_commits, \%authors, \%committers, \%reviews);
+	return ($total_commits, \%authors);
 }
 
 sub members_to_str {
@@ -106,14 +98,12 @@ sub read_file_churn_csv {
 			my $filepath = $1;
 			my $frequency= $2;
 
-			my ($commit_count, $authors, $committers, $reviews) = read_adjusted_file_churn($filepath);
+			my ($commit_count, $authors) = read_adjusted_file_churn($filepath);
 #			print "Adjusted : $filepath ($frequency -> $commit_count)\n" if $commit_count != $frequency;
 			next if $commit_count <= 0;
 
 			$file_stats{$filepath}{commits} = $commit_count;
 			$file_stats{$filepath}{authors} = members_to_str($authors);
-			$file_stats{$filepath}{committers} = members_to_str($committers);
-			$file_stats{$filepath}{reviews} = members_to_str($reviews);
 #			print Dumper $file_stats{$filepath};
 		}
 	}
@@ -204,10 +194,6 @@ sub build_churn_complexity {
 	 			$file_churn_stats->{$filepath}{commits} if (!defined( $stats{$filepath}{commits}));
 	 		$stats{$filepath}{authors} =
 	 			$file_churn_stats->{$filepath}{authors} if (!defined( $stats{$filepath}{authors}));
-	 		$stats{$filepath}{committers} =
-	 			$file_churn_stats->{$filepath}{committers} if (!defined( $stats{$filepath}{committers}));
-	 		$stats{$filepath}{reviews} =
-	 			$file_churn_stats->{$filepath}{reviews} if (!defined( $stats{$filepath}{reviews}));
 
 			$stats{$filepath}{sum_complexity} = $complexity + $stats{$filepath}{sum_complexity};
 			$stats{$filepath}{funct_count} = $stats{$filepath}{funct_count} + 1;
@@ -276,7 +262,7 @@ sub export_csv_sorted_by_file_complexity {
 	open(FILE_CHURN_COMPLEXITY, '>:encoding(UTF-8)', $file_churn_ccn_file_path)
 		or die "Couldn't open 'file_churn_complexity.csv': $1\n";
 
-	print FILE_CHURN_COMPLEXITY "filename,commits,file complexity,# of function,avg complexity,max function name,max complexity,authors,committers,reviews\n";
+	print FILE_CHURN_COMPLEXITY "filename,commits,file complexity,# of function,avg complexity,max function name,max complexity,authors\n";
 	# sort 1) commits desc 2) complexity desc, 3) filename asc with lowercase
 	foreach (sort { by_file_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
 		print FILE_CHURN_COMPLEXITY "$_"
@@ -287,8 +273,6 @@ sub export_csv_sorted_by_file_complexity {
 		      ,",$file_churn_complexity_stats->{$_}{'max_complexity_funct_name'}"
 		      ,",$file_churn_complexity_stats->{$_}{'max_complexity'}"
 		      ,",$file_churn_complexity_stats->{$_}{'authors'}"
-		      ,",$file_churn_complexity_stats->{$_}{'committers'}"
-		      ,",$file_churn_complexity_stats->{$_}{'reviews'}"
 		      ,"\n";
 	}
 
@@ -304,7 +288,7 @@ sub export_csv_sorted_by_max_function_complexity {
 	open(FILE_CHURN_COMPLEXITY_MAX, '>:encoding(UTF-8)', $file_churn_ccn_max_file_path)
 		or die "Couldn't open 'file_churn_complexity_max.csv': $1\n";
 
-	print FILE_CHURN_COMPLEXITY_MAX "filename,max function name,commits,max complexity,file complexity,# of function,avg complexity,authors,committers,reviews\n";
+	print FILE_CHURN_COMPLEXITY_MAX "filename,max function name,commits,max complexity,file complexity,# of function,avg complexity,authors\n";
 	# sort 1) commits desc 2) max complexity desc, 3) filename asc with lowercase
 	foreach (sort { by_max_complexity ($a, $b, $file_churn_complexity_stats); } keys %{$file_churn_complexity_stats} ) {
 		print FILE_CHURN_COMPLEXITY_MAX "$_"
@@ -315,9 +299,7 @@ sub export_csv_sorted_by_max_function_complexity {
 		      ,",$file_churn_complexity_stats->{$_}{'funct_count'}"
 		      ,",$file_churn_complexity_stats->{$_}{'avg_complexity'}"
 		      ,",$file_churn_complexity_stats->{$_}{'authors'}"
-		      ,",$file_churn_complexity_stats->{$_}{'committers'}"
-		      ,",$file_churn_complexity_stats->{$_}{'reviews'}"
-		      ,"\n";
+		      ."\n";
 	}
 
 	close FILE_CHURN_COMPLEXITY_MAX;
