@@ -182,7 +182,7 @@ def write_all_files(cumulative_df, result_csv_filename):
 	df = cumulative_df.sort(
 		['commits', 'file complexity', 'max complexity', 'filename'], ascending=[False, False, False, True])
 	df.to_csv(result_csv_filename,
-				cols=['repo_name', 'filename', 'commits', 'file complexity', '# of function', 'avg complexity', 'max function name', 'max complexity', 'authors', 'committers', 'reviews'],
+				cols=['repo_name', 'filename', 'commits', 'file complexity', '# of function', 'avg complexity', 'max function name', 'max complexity', 'authors'],
 				header=True,index=False)
 
 print "================================================================================"
