@@ -1,7 +1,7 @@
 Purpose
 =======
 
-Source files which was commited frequently and has high complexity are risky item to be reviewed and/or refactored.
+Source files which were commited frequently and had high complexity are risky item to be reviewed and/or refactored.
 
 See also: http://www.stickyminds.com/sitewide.asp?Function=edetail&ObjectType=COL&ObjectId=16679
 
