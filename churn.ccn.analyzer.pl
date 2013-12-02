@@ -76,18 +76,19 @@ sub build_und_database($$) {
 
 	my $BUILD_DATABASE_COMMAND = "und -quiet "
 	."create -db $target_und_db_file -languages $languages "
-	."-JavaVersion java6 "
+	# ."-JavaVersion java6 "
 	."add "
-		."-exclude .git "
+		# ."-exclude .git "
 		."-subdir on $target_dir "
-	."settings "
-		 ."-metrics "
-		 	."CountLineCode "
-		 	."Cyclomatic "
-		 	."MaxCyclomatic "
-		 	."MaxNesting "
-		 ."-metricsOutputFile "
-		 .catfile($result_dir, "metrics.csv");
+	# ."settings "
+	# 	 ."-metrics "
+	# 	 	."CountLineCode "
+	# 	 	."Cyclomatic "
+	# 	 	."MaxCyclomatic "
+	# 	 	."MaxNesting "
+	# 	 ."-metricsOutputFile "
+	# 	 .catfile($result_dir, "metrics.csv")
+	;
 #	print "$BUILD_DATABASE_COMMAND\n";	
 	system($BUILD_DATABASE_COMMAND);
 
@@ -217,7 +218,7 @@ sub build_churn_complexity {
 	my ($target_dir) = shift(@_);
 
 	my $target_und_db_file = catfile($result_dir, "$target_name.udb");
-	system("und uperl und.file.complexity.pl $target_dir -db $target_und_db_file -v");
+	system("und uperl und.file.complexity.pl -db $target_und_db_file '$ARGV[2]' -v");
 }
 
 # print "0) $ARGV[0]\n";

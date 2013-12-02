@@ -215,3 +215,8 @@ pip-log.txt
 .mr.developer.cfg
 
 churn-complexity-output/
+git-repo-list
+*.svg
+*.png
+*.csv
+*.diff
