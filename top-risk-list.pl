@@ -58,8 +58,8 @@ sub min_ ($$) {
 sub readline_max_complexity {
 	my ($line, $repo_path, $risky_items) = @_;
 
-	# filename, max function name, commits, max complexity, file complexity, # of function, avg complexity, authors, committers
-	if ($line =~ m{^(.+),(.+),(\d+),(\d+),(\d+),(\d+),(\d+\.\d+),(.+),(.+)} ) {
+	# filename, max function name, commits, max complexity, file complexity, # of function, avg complexity, authors, committers, reviews
+	if ($line =~ m{^(.+),(.+),(\d+),(\d+),(\d+),(\d+),(\d+\.\d+),(.+),(.+),(.+)} ) {
 		my $filename          = $1;
 		my $max_function_name = $2;
 		my $commits           = $3;
@@ -69,6 +69,7 @@ sub readline_max_complexity {
 		my $avg_complexity    = $7;
 		my $authors           = $8;
 		my $committers        = $9;
+		my $reviews           = $10;
 
 #		my $key = $repo_path ."::" .$filename ."::" .$max_function_name;
 		my $key = $repo_path ."::" .$filename ."::" .$max_function_name ."($commits, $max_complexity)";
@@ -82,6 +83,7 @@ sub readline_max_complexity {
 		$risky_items->{$key}{'avg_complexity'}    = $avg_complexity;
 		$risky_items->{$key}{'authors'}           = $authors;
 		$risky_items->{$key}{'committers'}        = $committers;
+		$risky_items->{$key}{'reviews'}           = $reviews;
 #			print $count,") ", $line,"\n";
 	}
 }
@@ -89,8 +91,8 @@ sub readline_max_complexity {
 sub readline_file_complexity {
 	my ($line, $repo_path, $risky_items) = @_;
 
-	# filename, commits, file complexity, # of function, avg complexity, max function name, max complexity, authors, committers
-	if ($line =~ m{^(.+),(\d+),(\d+),(\d+),(\d+\.\d+),(.+),(\d+),(.+),(.+)} ) {
+	# filename, commits, file complexity, # of function, avg complexity, max function name, max complexity, authors, committers, reviews
+	if ($line =~ m{^(.+),(\d+),(\d+),(\d+),(\d+\.\d+),(.+),(\d+),(.+),(.+),(.+)} ) {
 		my $filename          = $1;
 		my $commits           = $2;
 		my $file_complexity   = $3;
@@ -100,6 +102,7 @@ sub readline_file_complexity {
 		my $max_complexity    = $7;
 		my $authors           = $8;
 		my $committers        = $9;
+		my $reviews           = $10;
 #		print "$repo_path - $filename - $authors\n";
 
 #		my $key = $repo_path ."::" .$filename;
@@ -114,6 +117,7 @@ sub readline_file_complexity {
 		$risky_items->{$key}{'avg_complexity'}    = $avg_complexity;
 		$risky_items->{$key}{'authors'}           = $authors;
 		$risky_items->{$key}{'committers'}        = $committers;
+		$risky_items->{$key}{'reviews'}           = $reviews;
 #			print $count,") ", $line,"\n";
 #		print Dumper $risky_items->{$key};
 	}
@@ -224,7 +228,7 @@ sub build_csv_header {
 	if ($criteria eq "max") {
 		$header .= ",function complexity";
 	}
-	$header .= ",file complexity,avg complexity,authors,committers\n"; 
+	$header .= ",file complexity,avg complexity,authors,committers,reviews\n"; 
 
 	return $header;
 }
@@ -246,7 +250,9 @@ sub build_csv_data {
 	$data .= ",$risky_items->{$key}{'file_complexity'}"
 		  . ",$risky_items->{$key}{'avg_complexity'}"
 		  . ",$risky_items->{$key}{'authors'}"
-		  . ",$risky_items->{$key}{'committers'}\n"; 
+		  . ",$risky_items->{$key}{'committers'}"
+		  . ",$risky_items->{$key}{'reviews'}"
+		  . "\n"; 
 	return $data;
 }
 
@@ -281,9 +287,7 @@ sub export_top_risk_to_csv {
 sub gen_chart_by_using_pygal {
 	my ($top_risk_filepath) = @_;
 	my $chart_filename = basename($top_risk_filepath, ".csv") .".svg";
-#	print ("./gen.churn.ccn.chart.py -i $top_risk_filepath -o $chart_filename 2>/dev/null\n");
 	system("./gen.churn.ccn.chart.py", "-i", "$top_risk_filepath", "-o", "$chart_filename", "2>/dev/null");
-	system("./gen.churn.ccn.chart.py", "-i", "$top_risk_filepath", "-o", "$chart_filename", "max 2>/dev/null");
 }
 
 # ====================================================================
