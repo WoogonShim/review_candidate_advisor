@@ -62,7 +62,7 @@ Get modified files from specific date range and Acquire complexity of each file 
   Output
   ======
 
-  Result will be stored at git path under 'churn-complexity-output' directory.
+  Result will be stored at the 'churn-complexity-output' directory.
 
       * file_churn_complexity.csv
         - filename
@@ -79,7 +79,7 @@ Get modified files from specific date range and Acquire complexity of each file 
 
 2. For large project which has multiple sub git repositories
 
-Scan all git repositories of project and Run 'churn.ccn.analyzer.pl' script onto each git repository. Gather all 'file_churn_complexity.csv' and sorted by churn (commits) and file complexity descending order. Export top risky items to be reviewed or refactored to 'top_risk_files.csv'.
+Scan all git repositories of project and Run 'churn.ccn.analyzer.pl' script onto each git repository. Gather all 'file_churn_complexity.csv' and sorted by churn (commits) and file complexity descending order. Export top risky items to be reviewed or refactored to 'top_20_risk_files(file).csv'.
 
   Usage
   =====
