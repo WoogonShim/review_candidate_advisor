@@ -46,6 +46,7 @@ from pygal import Config
 class XYConfig(Config):
 	stroke=False
 	show_legend=False
+	legend_font_size=10
 	title_font_size=20
 	fill = True
 #	x_scale = 5
@@ -151,8 +152,8 @@ def generate_project_level_chart(git_repo_list, csv_file_list, title, data_type,
 		chart.add(repo_name, churn_complexity)  # Add some values
 		total += data_count
 		
-	total = '{0:,}'.format(data_count)
-	chart.title = '"{0}" churn vs complexity ({1}) - total {2} items'.format(title, data_type, total)
+	total_str = '{0:,}'.format(total)
+	chart.title = '"{0}" churn vs complexity ({1}) - total {2} items'.format(title, data_type, total_str)
 	fileName, fileExtension = os.path.splitext(output_filename)
 	if fileExtension.lower() == "png":
 		chart.render_to_png(output_filename)
@@ -181,7 +182,7 @@ def write_all_files(cumulative_df, result_csv_filename):
 	df = cumulative_df.sort(
 		['commits', 'file complexity', 'max complexity', 'filename'], ascending=[False, False, False, True])
 	df.to_csv(result_csv_filename,
-				cols=['repo_name', 'filename', 'commits', 'file complexity', '# of function', 'avg complexity', 'max function name', 'max complexity', 'authors', 'committers'],
+				cols=['repo_name', 'filename', 'commits', 'file complexity', '# of function', 'avg complexity', 'max function name', 'max complexity', 'authors', 'committers', 'reviews'],
 				header=True,index=False)
 
 print "================================================================================"
@@ -208,7 +209,6 @@ print " ... Done"
 print "  => Total {0} files".format(total_files)
 print "6/8) Generating churn-complexity chart",
 title = get_last_dirname(common_prefix)
-#build_chart(churn_complexity, title, data_type, output_filename)
 generate_project_level_chart(git_repo_list, csv_file_list, title, data_type, output_filename)
 print " ... Done"
 print "  => See result at '", output_filename, "'"

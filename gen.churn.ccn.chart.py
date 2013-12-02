@@ -9,6 +9,8 @@ def read_csv_file(filepath):
 			delimiter=',\s*',
 			header=0,
 			encoding='utf-8')
+	df = df.sort(
+		['commits', 'file complexity', 'filename', 'repo_name'], ascending=[False, False, False, True])
 	return df
 
 def get_type(df):
@@ -30,25 +32,30 @@ def get_path_prefix(input_filename):
 							"churn-complexity-output")
 	return prefix
 
-def get_churn_complexity(df, type, input_filename):
-	prefix = get_path_prefix(input_filename)
-	churn_complexity = []
+def get_churn_complexity(df, type, common_prefix):
+	repo_churn_complexity = {}
 	repo = ''
 
 	for row_index, row in df.iterrows():
-		if 'repo_name' in df.columns: repo = os.path.relpath(row['repo_name'], prefix)
+		if 'repo_name' in df.columns: 
+			repo = os.path.relpath(row['repo_name'], common_prefix)
 
 		if type == 'file':
 			value = "({0},{1})".format(row['commits'], row['file complexity'])
 			label = "{0}/{1}".format(repo, row['filename'])
-			churn_complexity.append(
+			if not repo in repo_churn_complexity.keys():
+				repo_churn_complexity[repo] = []
+			repo_churn_complexity[repo].append(
 				{'value': eval(value), 'label': label})
 		else:
 			value = "({0},{1})".format(row['commits'], row['function complexity'])
 			label = "{0}/{1}::{2}".format(repo, row['filename'], row['function name'])
-			churn_complexity.append(
+			if not repo in repo_churn_complexity.keys():
+				repo_churn_complexity[repo] = []
+			repo_churn_complexity['values'].append(
 				{'value': eval(value), 'label': label})
-	return churn_complexity
+
+	return len(df.index), repo_churn_complexity
 
 # pygal 을 사용하여 차트 생성 - http://pygal.org/
 import pygal  # First import pygal
@@ -56,7 +63,9 @@ from pygal import Config
 
 class XYConfig(Config):
 	stroke=False
-	show_legend=False
+	show_legend=True
+	legend_font_size=10
+	legend_at_bottom=True
 	title_font_size=20
 	fill = True
 	x_scale = 5
@@ -65,12 +74,14 @@ class XYConfig(Config):
 	x_title = 'churn (# of commits)'
 	y_title = 'complexity'
 
-def build_chart(churn_complexity, name, data_type, output_filename):
+def build_chart(repo_churn_complexity, name, total, data_type, output_filename):
 	chart = pygal.XY(XYConfig())
-	chart.title = '"{0}" churn vs complexity ({1}) - total {2} items'.format(name, data_type, len(churn_complexity))
-	if len(churn_complexity) == 1:
-		churn_complexity.append({'value': (0,0), 'label': 'origin'})
-	chart.add('values', churn_complexity)  # Add some values
+	chart.title = '"{0}" churn vs complexity ({1}) - total {2} items'.format(name, data_type, total)
+	for repo_name, churn_complexity in repo_churn_complexity.iteritems():
+		if len(churn_complexity) == 1:
+			churn_complexity.append({'value': (0,0), 'label': 'origin'})
+		chart.add(repo_name, churn_complexity)  # Add some values
+
 	fileName, fileExtension = os.path.splitext(output_filename)
 	if fileExtension.lower() == "png":
 		chart.render_to_png(output_filename)
@@ -138,9 +149,10 @@ print "2/4) Determining csv file type",
 data_type = get_type(df)
 print " ... Done ('", data_type, "')"
 print "3/4) Retrieving churn-complexity data from csv file",
-churn_complexity = get_churn_complexity(df, data_type, input_filename)
+path_prefix = get_path_prefix(input_filename)
+total, repo_churn_complexity = get_churn_complexity(df, data_type, path_prefix)
 print " ... Done"
 print "4/4) Generating churn-complexity chart",
-name = get_last_dirname(input_filename)
-build_chart(churn_complexity, name, data_type, output_filename)
+title = get_last_dirname(input_filename)
+build_chart(repo_churn_complexity, title, total, data_type, output_filename)
 print " ... Done ('", output_filename, "')"
