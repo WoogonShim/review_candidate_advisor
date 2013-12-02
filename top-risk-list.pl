@@ -287,9 +287,7 @@ sub export_top_risk_to_csv {
 sub gen_chart_by_using_pygal {
 	my ($top_risk_filepath) = @_;
 	my $chart_filename = basename($top_risk_filepath, ".csv") .".svg";
-#	print ("./gen.churn.ccn.chart.py -i $top_risk_filepath -o $chart_filename 2>/dev/null\n");
 	system("./gen.churn.ccn.chart.py", "-i", "$top_risk_filepath", "-o", "$chart_filename", "2>/dev/null");
-	system("./gen.churn.ccn.chart.py", "-i", "$top_risk_filepath", "-o", "$chart_filename", "max 2>/dev/null");
 }
 
 # ====================================================================

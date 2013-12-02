@@ -10,7 +10,7 @@ def read_csv_file(filepath):
 			header=0,
 			encoding='utf-8')
 	df = df.sort(
-		['commits', 'file complexity', 'filename', 'repo_name'], ascending=[False, False, False, True])
+		['commits', 'file complexity', 'filename'], ascending=[False, False, True])
 	return df
 
 def get_type(df):

@@ -84,7 +84,7 @@ Scan all git repositories of project and Run 'churn.ccn.analyzer.pl' script onto
   Usage
   =====
 
-   $ run.batch.at [top path of project] [criteria] [limit]
+   $ run.batch.at.sh [top path of project] [criteria] [limit]
 
       - top path    directory path of target project
 
@@ -100,8 +100,8 @@ Scan all git repositories of project and Run 'churn.ccn.analyzer.pl' script onto
   Examples
   ========
 
-   $ run.batch.at ~/he/wall/ file 10
-   $ run.batch.at ~/mc/lgapps/ max
+   $ run.batch.at.sh ~/he/wall/ file 10
+   $ run.batch.at.sh ~/mc/lgapps/ max
 
   Output
   ======
