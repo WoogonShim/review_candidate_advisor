@@ -213,12 +213,12 @@ sub build_csv_header {
 
 	my $header = "repo_name,filename";
 	if ($criteria eq "max") {
-		$header .= ",function name";
+		$header .= ",max function name";
 	}
 
 	$header .= ",commits";
 	if ($criteria eq "max") {
-		$header .= ",function complexity";
+		$header .= ",max complexity";
 	}
 	$header .= ",file complexity,avg complexity,authors\n"; 
 
@@ -275,9 +275,9 @@ sub export_top_risk_to_csv {
 }
 
 sub gen_chart_by_using_pygal {
-	my ($top_risk_filepath) = @_;
+	my ($criteria, $top_risk_filepath) = @_;
 	my $chart_filename = basename($top_risk_filepath, ".csv") .".svg";
-	system("./gen.churn.ccn.chart.py", "-i", "$top_risk_filepath", "-o", "$chart_filename", "2>/dev/null");
+	system("./gen.churn.ccn.chart.py", "-i", "$top_risk_filepath", "-o", "$chart_filename", "-t", $criteria, "2>/dev/null");
 }
 
 # ====================================================================
@@ -312,5 +312,5 @@ export_top_risk_to_csv($criteria, $result_limit, $top_risk_filepath, \%risky_ite
 print "   See result at ", $HIGHLIGHT, "'$top_risk_filepath'$NORMAL file.\n";
 print $HIGHLIGHT,"Done...", "$NORMAL\n";
 print $HIGHLIGHT,"1/4) Generating chart by Python Pygal", "$NORMAL\n";
-gen_chart_by_using_pygal($top_risk_filepath);
+gen_chart_by_using_pygal($criteria, $top_risk_filepath);
 print $HIGHLIGHT,"Done...", "$NORMAL\n";
