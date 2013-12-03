@@ -11,5 +11,5 @@ echo -e "${HIGHLIGHT}===========================================================
 ./scan.all.repos.at.pl $1
 ./gather.all.repos.data.from.sh
 ./top-risk-list.pl $1 $2 $3
-./batch.gen.churn.ccn.chart.py
+./batch.gen.churn.ccn.chart.py -t $2
 echo -e "${HIGHLIGHT} Batch analysis completed${NORMAL}"

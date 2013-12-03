@@ -27,7 +27,9 @@ def get_churn_complexity(df, data_type, prefix):
 	complexity = data_type + ' complexity'
 
 	for row_index, row in df.iterrows():
-		if 'repo_name' in df.columns: repo = os.path.relpath(row['repo_name'], prefix)
+		if 'repo_name' in df.columns:
+			repo = os.path.relpath(row['repo_name'], prefix)
+
 		if data_type in ('file', 'avg'):
 			value = "({0},{1})".format(row['commits'], row[complexity])
 			label = "{0}/{1}".format(repo, row['filename'])
@@ -35,7 +37,7 @@ def get_churn_complexity(df, data_type, prefix):
 				{'value': eval(value), 'label': label})
 		else:
 			value = "({0},{1})".format(row['commits'], row[complexity])
-			label = "{0}/{1}::{2}".format(repo, row['filename'], row['function name'])
+			label = "{0}/{1}::{2}".format(repo, row['filename'], row['max function name'])
 			churn_complexity.append(
 				{'value': eval(value), 'label': label})
 	return churn_complexity
@@ -73,8 +75,8 @@ def build_chart(churn_complexity, name, data_type, output_filename):
 import getopt, sys, os
 
 verbose = False
-output_filename = 'churn_complexity_chart(all files).svg'
-result_csv_filename = "file_churn_complexity(all files).csv"
+output_filename = "project-level-churn-complexity({0}).svg"
+result_csv_filename = "project-level-churn-complexity({0}).csv"
 data_type = 'file'
 
 def usage():
@@ -83,7 +85,6 @@ def usage():
 
     -h --help                 Prints this
     -t --type                 complexity type ('file', 'max', 'avg')
-    -o --output               Output filename
 
   *) Before using this script, you should execute 'run.batch.at.sh' script
     """
@@ -93,8 +94,7 @@ def main():
 	global input_filename, output_filename, verbose, data_type
 
 	try:
-		opts, args = getopt.gnu_getopt(sys.argv[1:], 'ho:t:v', ['help',
-															   'output=',
+		opts, args = getopt.gnu_getopt(sys.argv[1:], 'ht:v', ['help',
 															   'type=',
 		                                                       'verbose',
 		                                                      ])
@@ -109,8 +109,6 @@ def main():
 			sys.exit()
 		elif opt in ('-t', '--type'):
 			data_type = arg
-		elif opt in ('-o', '--output'):
-			output_filename = arg
 		elif opt in ('-v', '--verbose'):
 			verbose = True
 
@@ -215,10 +213,12 @@ print " ... Done"
 print "  => Total {0} files".format(total_files)
 print "6/8) Generating churn-complexity chart",
 title = get_last_dirname(common_prefix)
+output_filename = output_filename.format(data_type)
 generate_project_level_chart(git_repo_list, csv_file_list, title, data_type, output_filename)
 print " ... Done"
 print "  => See result at '", output_filename, "'"
 print "7/8) Generating csv file for project's whole files",
+result_csv_filename = result_csv_filename.format(data_type)
 write_all_files(cumulative_df, data_type, result_csv_filename)
 print " ... Done"
 print "  => See also '", result_csv_filename, "'"
