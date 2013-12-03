@@ -254,6 +254,7 @@ sub by_file_complexity {
 	( lc $a cmp lc $b )
 }
 
+
 sub export_csv_sorted_by_file_complexity {
 	my ($file_churn_complexity_stats) = @_;
 
